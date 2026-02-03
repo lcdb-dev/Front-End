@@ -1,0 +1,79 @@
+---
+interface Props {
+  currentLang?: string;
+}
+
+const { currentLang = 'en' } = Astro.props;
+
+const footerLinks = [
+  { label: 'Log out', url: '#' },
+  { label: 'My account', url: '#' },
+  { label: 'Contact', url: '/contact' },
+  { label: 'Partnership', url: '#' },
+  { label: 'Legal Notices', url: '/legal' },
+  { label: 'GDPR', url: '/gdpr' }
+];
+
+const languages = [
+  { code: 'en', label: 'English' },
+  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+  { code: 'pt', label: 'Português' },
+  { code: 'ar', label: 'العربية' }
+];
+
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="bg-gray-900 dark:bg-black text-white mt-16">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- Links Section -->
+    <div class="flex flex-wrap justify-center gap-6 mb-8 pb-8 border-b border-gray-700">
+      {footerLinks.map((link, index) => (
+        <>
+          <a
+            href={link.url}
+            class="text-gray-400 hover:text-orange-500 transition-colors font-medium"
+          >
+            {link.label}
+          </a>
+          {index < footerLinks.length - 1 && (
+            <span class="text-gray-600">|</span>
+          )}
+        </>
+      ))}
+    </div>
+
+    <!-- Copyright Text -->
+    <div class="text-center mb-8">
+      <p class="text-gray-400 text-sm mb-4">
+        The texts, recipes, and photos are the property of Bernard Laurance and the website 'La Cuisine de Bernard'.
+      </p>
+      <p class="text-gray-400 text-sm mb-6">
+        No part of this site may be copied or reused without permission.
+      </p>
+      <p class="text-gray-500 font-bold text-lg">
+        ©{2010} - {currentYear} La Cuisine de Bernard
+      </p>
+    </div>
+
+    <!-- Language Section -->
+    <div class="border-t border-gray-700 pt-8">
+      <div class="flex flex-wrap justify-center gap-4 mb-8">
+        {languages.map((lang) => (
+          <a
+            href={`/${lang.code}`}
+            class={`px-3 py-1 rounded-full transition-all ${
+              currentLang === lang.code
+                ? 'bg-orange-500 text-white font-bold'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            {lang.label}
+          </a>
+        ))}
+      </div>
+
+    </div>
+  </div>
+</footer>

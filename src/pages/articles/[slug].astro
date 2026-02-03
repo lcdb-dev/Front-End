@@ -1,0 +1,178 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { payloadFetch } from '../../lib/payload.client';
+import { getAllArticlesFromMongo, getArticleBySlugFromMongo } from '../../lib/mongo.server';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  // Try to get articles from MongoDB first (with featured_img_url)
+  let articles = await getAllArticlesFromMongo();
+  
+  // Fallback to Payload if MongoDB fails
+  if (!articles || articles.length === 0) {
+    articles = await payloadFetch({
+      collection: 'articles',
+      query: { depth: 2 }
+    });
+  }
+
+  if (!articles || !Array.isArray(articles)) {
+    return [];
+  }
+
+  return articles.map((article: any) => ({
+    params: { slug: article.slug },
+    props: { article }
+  }));
+}
+
+interface Props {
+  article: any;
+}
+
+const { article } = Astro.props;
+
+// Debug log
+console.log('📸 Article featured image:', {
+  title: article?.title,
+  featured_img_url: article?.featured_img_url,
+  featured_image: article?.featured_image,
+  featured_image_url: article?.featured_image?.url,
+  hasImage: !!(article?.featured_img_url || article?.featured_image?.url),
+});
+---
+
+<BaseLayout title={article.title} description={article.excerpt}>
+  <main class="min-h-screen bg-gray-900">
+    <div class="container mx-auto px-4 py-20">
+      <nav class="mb-8 flex items-center gap-2 text-gray-400 text-sm">
+        <a href="/">Home</a>
+        <span>/</span>
+        <span>{article.title}</span>
+      </nav>
+
+      <article class="bg-gray-800 rounded-lg p-8 max-w-3xl mx-auto">
+        <h1 class="text-4xl font-bold text-white mb-6">{article.title}</h1>
+
+        {(article.featured_img_url || article.featured_image?.url) ? (
+          <div class="mb-8 overflow-hidden rounded-lg">
+            <img 
+              src={article.featured_image?.url || article.featured_img_url} 
+              alt={article.title}
+              class="w-full h-auto object-cover"
+              onError="this.style.display='none'"
+            />
+          </div>
+        ) : null}
+
+        <div class="flex gap-6 text-sm text-gray-400 mb-8 pb-8 border-b border-gray-700">
+          {article.date && <time>📅 {new Date(article.date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}</time>}
+          {article.author && <span>👨‍🍳 {article.author.name}</span>}
+        </div>
+
+        {article.categories && article.categories.length > 0 && (
+          <div class="mb-6 flex gap-2 flex-wrap">
+            {article.categories.map((cat: any) => (
+              <a href={`/categories/${cat.slug}`} class="text-sm bg-purple-700 px-3 py-1 rounded hover:bg-purple-600">
+                {cat.title}
+              </a>
+            ))}
+          </div>
+        )}
+
+        {article.tags && article.tags.length > 0 && (
+          <div class="mb-8 flex gap-2 flex-wrap">
+            {article.tags.map((tag: any) => (
+              <a href={`/tags/${tag.slug}`} class="text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600">
+                #{tag.title}
+              </a>
+            ))}
+          </div>
+        )}
+
+        <div class="prose prose-invert max-w-none mb-8">
+          <div set:html={typeof article.content === 'string' ? article.content : ''} class="text-gray-300 leading-relaxed"></div>
+        </div>
+
+        {/* Comments Section - Dynamic Loading */}
+        <div class="mt-12 pt-8 border-t border-gray-700" id="comments-section">
+          <h2 class="text-2xl font-bold text-white mb-6">💬 Comments (<span id="comment-count">0</span>)</h2>
+          <div id="comments-display" class="space-y-6">
+            <p class="text-gray-400">⏳ Loading comments...</p>
+          </div>
+        </div>
+
+        <div class="pt-6 border-t border-gray-700">
+          <a href="/" class="text-orange-400 hover:text-orange-300">← Back to articles</a>
+        </div>
+
+        {/* Comments Section - Using Giscus */}
+        <div class="mt-12 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Comments</h2>
+          <div id="comments-section">
+            <script src="https://giscus.app/client.js"
+                    data-repo="atoolsood-collab/comments"
+                    data-repo-id="R_kgDORHZbjw"
+                    data-category="General"
+                    data-category-id="DIC_kwDORHZbj84C1zio"
+                    data-mapping="pathname"
+                    data-strict="0"
+                    data-reactions-enabled="1"
+                    data-emit-metadata="0"
+                    data-input-position="bottom"
+                    data-theme="preferred_color_scheme"
+                    data-lang="en"
+                    crossorigin="anonymous"
+                    async>
+            </script>
+          </div>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <style>
+    .prose :global(h2) {
+      color: #fff;
+      font-size: 1.8rem;
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .prose :global(h3) {
+      color: #fff;
+      font-size: 1.3rem;
+      margin-top: 1.2rem;
+      margin-bottom: 0.8rem;
+    }
+    .prose :global(p) {
+      color: #d1d5db;
+      margin-bottom: 1rem;
+    }
+    .prose :global(a) {
+      color: #fb923c;
+      text-decoration: underline;
+    }
+    .prose :global(a:hover) {
+      color: #fdba74;
+    }
+    .prose :global(img) {
+      border-radius: 0.5rem;
+      margin: 1.5rem 0;
+      max-width: 100%;
+    }
+
+    /* Comments styles */
+    h2 {
+      font-size: 1.875rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 1.5rem;
+      margin-top: 3rem;
+    }
+  </style>
+</BaseLayout>

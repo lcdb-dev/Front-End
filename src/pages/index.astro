@@ -1,0 +1,116 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import ArticleSlider from "../components/ArticleSlider.astro";
+import MainContent from "../components/MainContent.astro";
+import RandomArticles from "../components/RandomArticles.astro";
+import RecipesSections from "../components/RecipesSections.astro";
+import VideoSection from "../components/VideoSection.astro";
+import GlobalAbout from "../components/GlobalAbout.astro";
+import GlobalFooter from "../components/GlobalFooter.astro";
+import { getArticlesPage as getArticlesPagePayload, getArticlesCount } from "../lib/payload.client";
+import { getArticlesFromMongo, getArticlesCountFromMongo } from "../lib/mongo.server";
+// Enable SSG with ISR for homepage
+export const prerender = true;
+
+// Static homepage - show first page only for SSG
+const currentPage = 1; // Always show page 1 for SSG
+const articlesPerPage = 10;
+
+// Build-time pagination: fetch directly from MongoDB for featured images
+let articles = await getArticlesFromMongo(currentPage, articlesPerPage);
+console.log('📦 ARTICLES FETCHED (MongoDB):', articles.length);
+
+// If MongoDB fails, fall back to Payload
+if (!articles || articles.length === 0) {
+  console.log('⚠️ MongoDB fallback failed, trying Payload API');
+  const paginatedArticles = await getArticlesPagePayload(currentPage, articlesPerPage);
+  articles = Array.isArray(paginatedArticles) ? paginatedArticles : [];
+}
+
+// Get total count from MongoDB
+const totalCount = await getArticlesCountFromMongo();
+const totalPages = Math.max(1, Math.ceil(totalCount / articlesPerPage));
+
+// Helper functions
+const decodeHtmlEntities = (text: string) => {
+  const entities: { [key: string]: string } = {
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&hellip;': '…',
+    '&mdash;': '—',
+    '&ndash;': '–',
+    '&lsquo;': "'",
+    '&rsquo;': "'",
+    '&ldquo;': '"',
+    '&rdquo;': '"',
+    '&bull;': '•',
+    '&deg;': '°',
+    '&frac12;': '½',
+    '&frac14;': '¼',
+    '&frac34;': '¾',
+  };
+
+  return text.replace(/&[a-zA-Z0-9#]+;/g, (entity) => {
+    return entities[entity] || entity;
+  });
+};
+
+const stripHtml = (html: string) => {
+  if (!html) return '';
+  const text = html.replace(/<[^>]*>/g, '');
+  const decodedText = decodeHtmlEntities(text);
+  return decodedText.substring(0, 150) + (decodedText.length > 150 ? '...' : '');
+};
+
+const getExcerpt = (article: any) => {
+  if (article.excerpt && Array.isArray(article.excerpt)) {
+    const text = article.excerpt.map((block: any) => 
+      block.children?.map((child: any) => child.text).join(' ') || ''
+    ).join(' ');
+    return stripHtml(text);
+  }
+  if (article.content && Array.isArray(article.content)) {
+    const text = article.content.map((block: any) => 
+      block.children?.map((child: any) => child.text).join(' ') || ''
+    ).join(' ');
+    return stripHtml(text);
+  }
+  return '';
+};
+
+const formatDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+---
+
+<BaseLayout title="Home">
+  <!-- New Design Header -->
+  <!-- <Header currentLang="en" /> -->
+
+  <!-- Article Slider -->
+  <ArticleSlider articles={articles} />
+
+  <!-- Main Content (Latest Articles + Sidebar) -->
+  <MainContent latestArticles={articles} currentLang="en" currentPage={currentPage} totalPages={totalPages} />
+
+  <!-- Sweet & Savory Recipes Sections -->
+  <RecipesSections allArticles={articles} />
+
+  <!-- YouTube Videos Section -->
+  <VideoSection />
+
+  <!-- Global About Section -->
+  <GlobalAbout />
+
+  <!-- Global Footer -->
+  <GlobalFooter />
+</BaseLayout>

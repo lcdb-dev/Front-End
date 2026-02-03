@@ -1,0 +1,53 @@
+---
+import SEO from "../components/SEO.astro";
+import Header from "../components/Header.astro";
+import '../styles/global.css';
+import '@fortawesome/fontawesome-free/css/all.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  canonical?: string;
+  slug?: string;
+  lang?: string;
+  image?: string;
+  jsonLd?: any[];
+}
+
+const { title, description, canonical, slug, lang = 'en', image, jsonLd = [] } = Astro.props;
+---
+
+<!doctype html>
+<html lang={lang} data-lang={lang}>
+  <head>
+    <SEO
+      title={title}
+      description={description}
+      canonical={canonical}
+      slug={slug}
+      image={image}
+    />
+    
+    {jsonLd && jsonLd.length > 0 && jsonLd.map(schema => (
+      <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+    ))}
+  </head>
+  <body>
+    <Header lang={lang} />
+    <slot />
+  </body>
+</html>
+
+<script>
+  import { initializeTranslations, setupLanguageSwitcher, watchLanguageChanges, translatePageContent } from '../utils/dynamicTranslate';
+
+  // Initialize translations on page load
+  async function init() {
+    await initializeTranslations();
+    setupLanguageSwitcher();
+    watchLanguageChanges();
+    translatePageContent();
+  }
+
+  init().catch(error => console.error('Failed to initialize translations:', error));
+</script>

@@ -1,0 +1,62 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ArticleSlider from "../../components/ArticleSlider.astro";
+import MainContent from "../../components/MainContent.astro";
+import RecipesSections from "../../components/RecipesSections.astro";
+import VideoSection from "../../components/VideoSection.astro";
+import AboutSection from "../../components/AboutSection.astro";
+import Footer from "../../components/Footer.astro";
+import { payloadFetch } from "../../lib/payload.client";
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  const result = await payloadFetch({
+    endpoint: '/collections/articles?limit=1000',
+    method: 'GET'
+  });
+  
+  const allArticles = result?.docs || [];
+  const articlesPerPage = 10;
+  const totalPages = Math.ceil(allArticles.length / articlesPerPage);
+
+  const paths = Array.from({ length: totalPages - 1 }, (_, i) => ({
+    params: { page: String(i + 2) },
+  }));
+
+  return paths;
+}
+
+const { page } = Astro.params;
+const currentPage = parseInt(page as string);
+const articlesPerPage = 10;
+
+const result = await payloadFetch({
+  endpoint: '/collections/articles?depth=2&limit=1000',
+  method: 'GET'
+});
+
+const allArticles = result?.docs || [];
+
+const articles = (Array.isArray(allArticles) ? allArticles : []).filter((a: any) => a && a.title);
+---
+
+<BaseLayout title={`Home - Page ${currentPage}`}>
+  <!-- Article Slider -->
+  <ArticleSlider articles={articles} />
+
+  <!-- Main Content (Latest Articles + Sidebar) - Same as homepage -->
+  <MainContent latestArticles={articles} currentLang="en" currentPage={currentPage} />
+
+  <!-- Sweet & Savory Recipes Sections -->
+  <RecipesSections allArticles={articles} />
+
+  <!-- YouTube Videos Section -->
+  <VideoSection />
+
+  <!-- About Section -->
+  <AboutSection />
+
+  <!-- Footer -->
+  <Footer currentLang="en" />
+</BaseLayout>
