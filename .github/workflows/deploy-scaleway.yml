@@ -1,0 +1,46 @@
+name: Deploy Static Site to Scaleway
+
+on:
+  push:
+    branches: [ main, master ]
+
+concurrency:
+  group: scaleway-static-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (SSG)
+        run: npm run build
+        env:
+          NODE_ENV: production
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MAX_SSG_ARTICLES: ${{ vars.MAX_SSG_ARTICLES }}
+          INCLUDE_SLUGS: ${{ vars.INCLUDE_SLUGS }}
+          USE_LOCAL_JSON: ${{ vars.USE_LOCAL_JSON }}
+
+      - name: Sync dist to Scaleway Object Storage
+        uses: jakejarvis/s3-sync-action@v0.5.1
+        with:
+          args: --delete
+        env:
+          AWS_S3_BUCKET: ${{ secrets.SCW_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          AWS_REGION: ${{ secrets.SCW_REGION || 'fr-par' }}
+          AWS_S3_ENDPOINT: ${{ secrets.SCW_ENDPOINT || 'https://s3.fr-par.scw.cloud' }}
+          SOURCE_DIR: dist

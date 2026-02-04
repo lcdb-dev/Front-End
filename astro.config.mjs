@@ -1,6 +1,5 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import node from '@astrojs/node';
 
 const isDev = process.env.NODE_ENV === 'development';
 const siteUrl = isDev
@@ -10,11 +9,11 @@ const siteUrl = isDev
 export default defineConfig({
   site: siteUrl,
 
-  // Use server output in dev for dynamic serving, static for production
-  output: isDev ? 'server' : 'static',
-  adapter: isDev ? node({ mode: 'standalone' }) : undefined,
+  // Pure SSG with ISR via rebuilds
+  output: 'static',
 
   vite: {
+    cacheDir: './.vite-cache-build',
     ssr: {
       external: ['svgo'],
     },

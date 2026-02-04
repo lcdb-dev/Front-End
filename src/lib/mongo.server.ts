@@ -1,5 +1,7 @@
 import { MongoClient, Db, ObjectId } from 'mongodb';
 import { config } from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 
 // Load env variables
 config();
@@ -181,6 +183,19 @@ export async function getRelatedArticlesFromMongo(categoryIds: any[], excludeArt
 }
 
 export async function getAllArticlesFromMongo() {
+  // Optional: use local JSON dump instead of hitting Mongo (one-off full build)
+  if (process.env.USE_LOCAL_JSON === '1') {
+    try {
+      const preparedPath = path.join(process.cwd(), 'prepared-articles.json');
+      const raw = fs.readFileSync(preparedPath, 'utf8');
+      const items = JSON.parse(raw);
+      console.log(`📄 [BUILD] Using prepared-articles.json with ${items.length} articles (USE_LOCAL_JSON=1)`);
+      return items;
+    } catch (err) {
+      console.error('❌ [BUILD] Failed to read prepared-articles.json, falling back to Mongo:', err);
+    }
+  }
+
   const startTime = Date.now();
   console.log('📊 [BUILD] Starting to fetch ALL articles from MongoDB...');
 
@@ -294,6 +309,33 @@ export async function getAllArticlesFromMongo() {
 }
 
 export async function getArticleBySlugFromMongo(slug: string) {
+  // Optional local JSON lookup
+  if (process.env.USE_LOCAL_JSON === '1') {
+    try {
+      const preparedPath = path.join(process.cwd(), 'prepared-articles.json');
+      const raw = fs.readFileSync(preparedPath, 'utf8');
+      const items = JSON.parse(raw);
+      const decodeSafe = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
+      const variants = new Set<string>();
+      const pushVar = (val?: string) => {
+        if (!val) return;
+        variants.add(val);
+        variants.add(decodeSafe(val));
+        variants.add(encodeURIComponent(decodeSafe(val)));
+        variants.add(val.replace(/^\/+|\/+$/g, ''));
+      };
+      pushVar(slug);
+      for (const item of items) {
+        const itemSlug = typeof item.slug === 'string' ? item.slug : item.slug?.current;
+        if (itemSlug && variants.has(itemSlug)) {
+          return item;
+        }
+      }
+    } catch (err) {
+      console.error('❌ [BUILD] Local JSON slug lookup failed, falling back to Mongo:', err);
+    }
+  }
+
   try {
     // Support Unicode slugs (Arabic, etc.) and encoded/decoded/trimmed variants
     const decodeSafe = (s: string) => {

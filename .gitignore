@@ -20,8 +20,14 @@ pnpm-debug.log*
 payload-admin/
 
 # Large data files (generated/test files)
-All Articles/all-posts.json
+All Articles/
 prepared-articles.json
+ar-slugs.csv
+LCDB
+LCDB.pub
+
+# local build caches
+.vite-cache-build/
 
 # Build and log files
 build.log
@@ -58,9 +64,6 @@ missing_articles.txt
 
 # jetbrains setting folder
 .idea/
-
-.vercel
-.env*.local
 
 .vercel
 .env*.local

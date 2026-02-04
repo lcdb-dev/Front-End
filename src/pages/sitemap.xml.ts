@@ -1,88 +1,116 @@
 import { payloadFetch } from '../lib/payload.client';
+import { getAllArticlesFromMongo } from '../lib/mongo.server';
 
 export async function GET() {
-  const baseUrl = 'https://lacuisinedebernard.com';
+  const baseUrl = import.meta.env.PUBLIC_SITE_URL || 'https://lacuisinedebernard.com';
   const urls = [];
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split('T')[0];
 
   // Root home
   urls.push({
     loc: `${baseUrl}/`,
-    priority: "1.0",
-    changefreq: "daily",
-    lastmod: today
+    priority: '1.0',
+    changefreq: 'daily',
+    lastmod: today,
   });
 
   // Categories page
   urls.push({
     loc: `${baseUrl}/categories`,
-    priority: "0.9",
-    changefreq: "weekly",
-    lastmod: today
+    priority: '0.9',
+    changefreq: 'weekly',
+    lastmod: today,
   });
 
   // Tags page
   urls.push({
     loc: `${baseUrl}/tags`,
-    priority: "0.9",
-    changefreq: "weekly",
-    lastmod: today
+    priority: '0.9',
+    changefreq: 'weekly',
+    lastmod: today,
   });
 
   // Search page
   urls.push({
     loc: `${baseUrl}/search`,
-    priority: "0.8",
-    changefreq: "weekly",
-    lastmod: today
+    priority: '0.8',
+    changefreq: 'weekly',
+    lastmod: today,
   });
 
-  // Fetch all articles from Sanity
-  const articles = await sanityFetch({
-    query: `*[_type == "article"] { slug, modified }`
-  });
+  // Fetch all articles (Mongo first, Payload fallback)
+  let articles: any[] = [];
+  try {
+    articles = await getAllArticlesFromMongo();
+  } catch (err) {
+    console.warn('[SITEMAP] Mongo fetch failed, falling back to Payload', err);
+  }
 
-  if (articles && Array.isArray(articles)) {
+  if (!articles?.length) {
+    try {
+      const res: any = await payloadFetch({
+        collection: 'articles',
+        query: { depth: 1, limit: 6000 },
+      });
+      articles = res?.docs || res || [];
+    } catch (err) {
+      console.error('[SITEMAP] Payload fetch failed', err);
+    }
+  }
+
+  if (Array.isArray(articles)) {
     articles.forEach((article: any) => {
+      const slug = typeof article.slug === 'string' ? article.slug : article.slug?.current;
+      if (!slug) return;
       urls.push({
-        loc: `${baseUrl}/${article.slug.current}`,
-        priority: "0.8",
-        changefreq: "weekly",
-        lastmod: article.modified || today
+        loc: `${baseUrl}/${slug}`,
+        priority: '0.8',
+        changefreq: 'weekly',
+        lastmod: article.modified || article.updated || article.date || today,
       });
     });
   }
 
-  // Fetch all categories from Sanity
-  const categories = await sanityFetch({
-    query: `*[_type == "category"] { slug }`
-  });
-
-  if (categories && Array.isArray(categories)) {
+  // Fetch categories from Payload (optional)
+  try {
+    const catRes: any = await payloadFetch({
+      collection: 'categories',
+      query: { depth: 0, limit: 500 },
+    });
+    const categories = catRes?.docs || catRes || [];
     categories.forEach((cat: any) => {
+      const slug = typeof cat.slug === 'string' ? cat.slug : cat.slug?.current;
+      if (!slug) return;
       urls.push({
-        loc: `${baseUrl}/categories/${cat.slug.current}`,
-        priority: "0.7",
-        changefreq: "weekly",
-        lastmod: today
+        loc: `${baseUrl}/categories/${slug}`,
+        priority: '0.7',
+        changefreq: 'weekly',
+        lastmod: today,
       });
     });
+  } catch (err) {
+    console.warn('[SITEMAP] Categories fetch skipped', err);
   }
 
-  // Fetch all tags from Sanity
-  const tags = await sanityFetch({
-    query: `*[_type == "tag"] { slug }`
-  });
-
-  if (tags && Array.isArray(tags)) {
+  // Fetch tags from Payload (optional)
+  try {
+    const tagRes: any = await payloadFetch({
+      collection: 'tags',
+      query: { depth: 0, limit: 500 },
+    });
+    const tags = tagRes?.docs || tagRes || [];
     tags.forEach((tag: any) => {
+      const slug = typeof tag.slug === 'string' ? tag.slug : tag.slug?.current;
+      if (!slug) return;
       urls.push({
-        loc: `${baseUrl}/tags/${tag.slug.current}`,
-        priority: "0.7",
-        changefreq: "weekly",
-        lastmod: today
+        loc: `${baseUrl}/tags/${slug}`,
+        priority: '0.7',
+        changefreq: 'weekly',
+        lastmod: today,
       });
     });
+  } catch (err) {
+    console.warn('[SITEMAP] Tags fetch skipped', err);
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -95,15 +123,15 @@ ${urls
     <lastmod>${url.lastmod}</lastmod>
     <changefreq>${url.changefreq}</changefreq>
     <priority>${url.priority}</priority>
-  </url>`
+  </url>`,
   )
-  .join("\n")}
+  .join('\n')}
 </urlset>`;
 
   return new Response(xml, {
     headers: {
-      "Content-Type": "application/xml; charset=utf-8",
-      "Cache-Control": "public, max-age=3600"
-    }
+      'Content-Type': 'application/xml; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600',
+    },
   });
 }
