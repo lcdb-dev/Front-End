@@ -29,6 +29,23 @@
 - [ ] If staging passes, raise cap to 5000 (or final agreed number) and rerun pipeline.
 - [ ] Send Leo final message with staging/prod URL and what was included in the 500 test run.
 
+## Pending - ContentV2 Long-Term Work
+
+- [ ] Build legacy migration tool (`payload-admin/src/scripts/migrateLegacyToV2.ts`) to convert old HTML into `contentV2` + blocks.
+  - [ ] Add dry-run mode (no writes).
+  - [ ] Add batch mode (process N articles per run).
+  - [ ] Add rollback-safe logs/snapshots per migrated article.
+- [ ] Add migration safety fields in Payload Articles (`migrationStatus`, `migrationNotes`, `legacySnapshot`).
+- [ ] Finalize frontend scaling strategy for large volume updates.
+  - [ ] Review `MAX_SSG_ARTICLES` behavior.
+  - [ ] Decide hybrid/SSR fallback path.
+  - [ ] Tune rendering/fetch flow in `src/lib/mongo.server.ts`, `src/pages/[slug].astro`, `src/pages/articles/[slug].astro`.
+- [ ] Create migration QA workflow.
+  - [ ] Compare legacy vs V2 render output.
+  - [ ] Validate image mapping + required alt text.
+  - [ ] Validate Recipe JSON-LD parity.
+  - [ ] Run random sample set + edge-case sample set before bulk migration.
+
 ## Optional One-Time Full Static Build (JSON Mode)
 
 - [ ] Set `USE_LOCAL_JSON=1`.
