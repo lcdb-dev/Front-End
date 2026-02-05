@@ -53,8 +53,8 @@ const getPageUrl = (page: number) => {
     return page === 1 ? clean || '/' : `${clean}/page/${page}`;
   }
 
-  // Default: use query param style on current root path (/?page=2)
-  return page === 1 ? '/' : `/?page=${page}`;
+  // Default homepage pagination route
+  return page === 1 ? '/' : `/page/${page}`;
 };
 
 const pageNumbers = getPageNumbers();

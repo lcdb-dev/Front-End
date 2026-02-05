@@ -19,19 +19,70 @@ async function generateSearchIndex() {
     const searchIndex = [];
     const total = articles.length;
 
+    const stripHtml = (value) => String(value || '').replace(/<[^>]*>/g, ' ');
+
+    const richTextToPlain = (value) => {
+      if (!value) return '';
+      if (typeof value === 'string') return stripHtml(value);
+      if (Array.isArray(value)) {
+        return value
+          .map((item) => {
+            if (!item) return '';
+            if (typeof item === 'string') return stripHtml(item);
+            if (typeof item === 'object') {
+              if (typeof item.text === 'string') return item.text;
+              if (Array.isArray(item.children)) {
+                return item.children
+                  .map((child) => (typeof child?.text === 'string' ? child.text : ''))
+                  .join(' ');
+              }
+            }
+            return '';
+          })
+          .join(' ');
+      }
+      if (typeof value === 'object') {
+        if (typeof value.text === 'string') return value.text;
+        if (Array.isArray(value.children)) {
+          return value.children
+            .map((child) => (typeof child?.text === 'string' ? child.text : ''))
+            .join(' ');
+        }
+      }
+      return '';
+    };
+
+    const entityName = (value) => {
+      if (!value) return '';
+      if (typeof value === 'string') return value;
+      if (typeof value === 'object') {
+        return value.name || value.title || value.label || '';
+      }
+      return '';
+    };
+
     for (let i = 0; i < total; i++) {
       const article = articles[i];
       const slug = typeof article.slug === 'string' ? article.slug : article.slug?.current || '';
+      const contentText = richTextToPlain(article.content).substring(0, 1000);
+      const excerptText = richTextToPlain(article.excerpt);
+      const categoryText = Array.isArray(article.categories)
+        ? article.categories.map(entityName).filter(Boolean).join(' ')
+        : entityName(article.category);
+      const tagsText = Array.isArray(article.tags)
+        ? article.tags.map(entityName).filter(Boolean).join(' ')
+        : '';
+      const authorText = entityName(article.author);
 
       const processedArticle = {
         id: article._id?.toString() || '',
         title: article.title || '',
-        content: article.content ? article.content.replace(/<[^>]*>/g, '').substring(0, 1000) : '',
-        excerpt: article.excerpt || '',
+        content: contentText,
+        excerpt: excerptText,
         slug,
-        category: article.category?.name || '',
-        tags: article.tags?.map((tag) => tag.name).join(' ') || '',
-        author: article.author?.name || '',
+        category: categoryText,
+        tags: tagsText,
+        author: authorText,
         publishedAt: article.publishedAt || '',
         featured_image: {
           url: processArticleImageUrl(article),
@@ -39,11 +90,11 @@ async function generateSearchIndex() {
         },
         searchableText: [
           article.title || '',
-          article.excerpt || '',
-          article.content ? article.content.replace(/<[^>]*>/g, '') : '',
-          article.category?.name || '',
-          article.tags?.map((tag) => tag.name).join(' ') || '',
-          article.author?.name || '',
+          excerptText,
+          contentText,
+          categoryText,
+          tagsText,
+          authorText,
         ].join(' ').toLowerCase(),
       };
 
