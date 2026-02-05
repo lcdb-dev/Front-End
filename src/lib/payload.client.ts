@@ -21,7 +21,6 @@ export async function payloadFetch<T>({
   cache?: RequestCache;
 }): Promise<T[]> {
   try {
-    console.log(`📡 Fetching from Payload: ${collection}`, query);
 
     // Build URL
     let url = `${payloadApiUrl}/${collection}`;

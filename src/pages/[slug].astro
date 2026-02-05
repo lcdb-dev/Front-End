@@ -22,6 +22,14 @@ import { processArticleImageUrl } from "../utils/cdnUrlReplacer";
 
 export const prerender = true;
 
+const getBuildLimit = () => {
+  const envLimit = Number(process.env.MAX_SSG_ARTICLES);
+  return Number.isFinite(envLimit) && envLimit > 0 ? envLimit : 50;
+};
+
+// Expensive per-page related queries are opt-in to keep CI/deploy builds fast.
+const shouldBuildRelated = process.env.BUILD_RELATED === "1";
+
 export async function getStaticPaths() {
   let articles: any[] = [];
 
@@ -46,7 +54,7 @@ export async function getStaticPaths() {
     try {
       const payloadResponse: any = await payloadFetch({
         collection: "articles",
-        query: { depth: 2, limit: 5000 },
+        query: { depth: 2, limit: getBuildLimit() },
       });
       articles = payloadResponse?.docs || payloadResponse || [];
     } catch (error) {
@@ -89,12 +97,8 @@ const comments = [];
 
 // For SSG: Fetch related articles at build time
 let relatedArticles: any[] = [];
-if (article) {
+if (article && shouldBuildRelated) {
   try {
-    console.log(
-      "🔍 [RELATED] Fetching related articles for article:",
-      article.title,
-    );
 
     // First try to get articles by category
     if (article.categories && article.categories.length > 0) {
@@ -107,11 +111,6 @@ if (article) {
         })
         .filter((id) => id);
 
-      console.log(
-        "🔍 [RELATED] Trying category-based search with IDs:",
-        categoryIds,
-      );
-
       relatedArticles = await getRelatedArticlesFromMongo(
         categoryIds,
         article._id,
@@ -121,7 +120,6 @@ if (article) {
 
     // If no category-based results, get random articles
     if (!relatedArticles || relatedArticles.length === 0) {
-      console.log("🔍 [RELATED] No category matches, trying random articles");
 
       const db = await getMongoConnection();
       const articlesCollection = db.collection("articles");
@@ -138,18 +136,6 @@ if (article) {
         _id: doc._id?.toString(),
         ...doc,
       }));
-
-      console.log(
-        "✅ [RELATED] Found",
-        relatedArticles.length,
-        "random related articles",
-      );
-    } else {
-      console.log(
-        "✅ [RELATED] Found",
-        relatedArticles.length,
-        "category-based related articles",
-      );
     }
   } catch (error) {
     console.error("❌ [RELATED] Error fetching related articles:", error);

@@ -183,14 +183,18 @@ export async function getRelatedArticlesFromMongo(categoryIds: any[], excludeArt
 }
 
 export async function getAllArticlesFromMongo() {
+  const envMax = Number(process.env.MAX_SSG_ARTICLES);
+  const limit = Number.isFinite(envMax) && envMax > 0 ? envMax : 50; // default cap 50 unless overridden
+
   // Optional: use local JSON dump instead of hitting Mongo (one-off full build)
   if (process.env.USE_LOCAL_JSON === '1') {
     try {
       const preparedPath = path.join(process.cwd(), 'prepared-articles.json');
       const raw = fs.readFileSync(preparedPath, 'utf8');
       const items = JSON.parse(raw);
-      console.log(`📄 [BUILD] Using prepared-articles.json with ${items.length} articles (USE_LOCAL_JSON=1)`);
-      return items;
+      const cappedItems = Array.isArray(items) ? items.slice(0, limit) : [];
+      console.log(`📄 [BUILD] Using prepared-articles.json with ${cappedItems.length}/${Array.isArray(items) ? items.length : 0} articles (USE_LOCAL_JSON=1, MAX_SSG_ARTICLES=${limit})`);
+      return cappedItems;
     } catch (err) {
       console.error('❌ [BUILD] Failed to read prepared-articles.json, falling back to Mongo:', err);
     }
@@ -202,9 +206,6 @@ export async function getAllArticlesFromMongo() {
   try {
     const db = await getMongoConnection();
     const articlesCollection = db.collection('articles');
-
-    const envMax = Number(process.env.MAX_SSG_ARTICLES);
-    const limit = Number.isFinite(envMax) && envMax > 0 ? envMax : 50; // default cap 50 unless overridden
 
     const prioritySlugsRaw = (process.env.INCLUDE_SLUGS || '')
       .split(',')

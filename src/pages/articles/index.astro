@@ -22,8 +22,6 @@ if (!allArticles || allArticles.length === 0) {
 // Filter articles
 const articles = (Array.isArray(allArticles) ? allArticles : []).filter((a: any) => a && a.title);
 
-console.log('🔍 Payload Articles Fetched:', allArticles);
-console.log('✅ Filtered articles:', articles.length);
 
 // Calculate pagination
 const totalPages = Math.ceil(articles.length / articlesPerPage);

@@ -1,9 +1,14 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { payloadFetch } from '../../lib/payload.client';
-import { getAllArticlesFromMongo, getArticleBySlugFromMongo } from '../../lib/mongo.server';
+import { getAllArticlesFromMongo } from '../../lib/mongo.server';
 
 export const prerender = true;
+
+const getBuildLimit = () => {
+  const envLimit = Number(process.env.MAX_SSG_ARTICLES);
+  return Number.isFinite(envLimit) && envLimit > 0 ? envLimit : 50;
+};
 
 export async function getStaticPaths() {
   // Try to get articles from MongoDB first (with featured_img_url)
@@ -13,7 +18,7 @@ export async function getStaticPaths() {
   if (!articles || articles.length === 0) {
     articles = await payloadFetch({
       collection: 'articles',
-      query: { depth: 2 }
+      query: { depth: 2, limit: getBuildLimit() }
     });
   }
 
@@ -33,14 +38,6 @@ interface Props {
 
 const { article } = Astro.props;
 
-// Debug log
-console.log('📸 Article featured image:', {
-  title: article?.title,
-  featured_img_url: article?.featured_img_url,
-  featured_image: article?.featured_image,
-  featured_image_url: article?.featured_image?.url,
-  hasImage: !!(article?.featured_img_url || article?.featured_image?.url),
-});
 ---
 
 <BaseLayout title={article.title} description={article.excerpt}>

@@ -19,11 +19,9 @@ const articlesPerPage = 10;
 
 // Build-time pagination: fetch directly from MongoDB for featured images
 let articles = await getArticlesFromMongo(currentPage, articlesPerPage);
-console.log('📦 ARTICLES FETCHED (MongoDB):', articles.length);
 
 // If MongoDB fails, fall back to Payload
 if (!articles || articles.length === 0) {
-  console.log('⚠️ MongoDB fallback failed, trying Payload API');
   const paginatedArticles = await getArticlesPagePayload(currentPage, articlesPerPage);
   articles = Array.isArray(paginatedArticles) ? paginatedArticles : [];
 }
