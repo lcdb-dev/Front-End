@@ -8,6 +8,40 @@ config();
 
 let cachedClient: MongoClient | null = null;
 let cachedDb: Db | null = null;
+let cachedPreparedArticles: any[] | null = null;
+let cachedAllArticles: any[] | null = null;
+let cachedAllArticlesAt = 0;
+let inFlightAllArticlesPromise: Promise<any[]> | null = null;
+
+const isDevMode = () => process.env.NODE_ENV !== 'production';
+
+const getBuildLimit = () => {
+  const envMax = Number(process.env.MAX_SSG_ARTICLES);
+  const requestedLimit = Number.isFinite(envMax) && envMax > 0 ? envMax : 50;
+
+  // Keep local dev light even if production MAX_SSG_ARTICLES is high.
+  if (isDevMode()) {
+    const envDevMax = Number(process.env.DEV_MAX_SSG_ARTICLES);
+    const devCap = Number.isFinite(envDevMax) && envDevMax > 0 ? envDevMax : 50;
+    return Math.min(requestedLimit, devCap);
+  }
+
+  return requestedLimit;
+};
+
+const shouldUseIncludeSlugs = () => {
+  if (!isDevMode()) return true;
+  return process.env.DEV_INCLUDE_SLUGS === '1';
+};
+
+const getPreparedArticles = () => {
+  if (cachedPreparedArticles) return cachedPreparedArticles;
+  const preparedPath = path.join(process.cwd(), 'prepared-articles.json');
+  const raw = fs.readFileSync(preparedPath, 'utf8');
+  const items = JSON.parse(raw);
+  cachedPreparedArticles = Array.isArray(items) ? items : [];
+  return cachedPreparedArticles;
+};
 
 export async function getMongoConnection() {
   if (cachedClient && cachedDb) {
@@ -185,146 +219,149 @@ export async function getRelatedArticlesFromMongo(categoryIds: any[], excludeArt
 }
 
 export async function getAllArticlesFromMongo() {
-  const envMax = Number(process.env.MAX_SSG_ARTICLES);
-  const limit = Number.isFinite(envMax) && envMax > 0 ? envMax : 50; // default cap 50 unless overridden
+  const limit = getBuildLimit();
+  const now = Date.now();
+  const cacheAge = now - cachedAllArticlesAt;
+  const cacheTtlMs = 30_000;
 
-  // Optional: use local JSON dump instead of hitting Mongo (one-off full build)
-  if (process.env.USE_LOCAL_JSON === '1') {
-    try {
-      const preparedPath = path.join(process.cwd(), 'prepared-articles.json');
-      const raw = fs.readFileSync(preparedPath, 'utf8');
-      const items = JSON.parse(raw);
-      const cappedItems = Array.isArray(items) ? items.slice(0, limit) : [];
-      console.log(`📄 [BUILD] Using prepared-articles.json with ${cappedItems.length}/${Array.isArray(items) ? items.length : 0} articles (USE_LOCAL_JSON=1, MAX_SSG_ARTICLES=${limit})`);
-      return cappedItems;
-    } catch (err) {
-      console.error('❌ [BUILD] Failed to read prepared-articles.json, falling back to Mongo:', err);
-    }
+  if (cachedAllArticles && (!isDevMode() || cacheAge < cacheTtlMs)) {
+    return cachedAllArticles;
   }
 
-  const startTime = Date.now();
-  console.log('📊 [BUILD] Starting to fetch ALL articles from MongoDB...');
+  if (inFlightAllArticlesPromise) {
+    return inFlightAllArticlesPromise;
+  }
 
-  try {
-    const db = await getMongoConnection();
-    const articlesCollection = db.collection('articles');
-
-    const prioritySlugsRaw = (process.env.INCLUDE_SLUGS || '')
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-
-    // Get total count first for progress tracking
-    const totalCount = await articlesCollection.countDocuments();
-    console.log(`📊 [BUILD] Found ${totalCount} articles in database`);
-
-    if (totalCount > limit) {
-      console.warn(`⚠️ [BUILD] Will fetch ${limit} base articles (set MAX_SSG_ARTICLES to raise). Priority slugs will still be added.`);
+  inFlightAllArticlesPromise = (async () => {
+    // Optional: use local JSON dump instead of hitting Mongo (one-off full build)
+    if (process.env.USE_LOCAL_JSON === '1') {
+      try {
+        const items = getPreparedArticles();
+        const cappedItems = items.slice(0, limit);
+        console.log(`?? [BUILD] Using prepared-articles.json with ${cappedItems.length}/${items.length} articles (USE_LOCAL_JSON=1, MAX_SSG_ARTICLES=${limit})`);
+        cachedAllArticles = cappedItems;
+        cachedAllArticlesAt = Date.now();
+        return cappedItems;
+      } catch (err) {
+        console.error('? [BUILD] Failed to read prepared-articles.json, falling back to Mongo:', err);
+      }
     }
 
-    // Fetch only fields needed to render article pages statically
-    console.log(`📊 [BUILD] Fetching up to ${limit} base articles from MongoDB (fields needed for SSG)...`);
-    const baseArticles = await articlesCollection.find(
-      {},
-      {
-        projection: {
-          _id: 1,
-          slug: 1,
-          title: 1,
-          content: 1,
-          contentV2: 1,
-          contentBlocks: 1,
-          recipeBlocks: 1,
-          imageBlocks: 1,
-          excerpt: 1,
-          date: 1,
-          modified: 1,
-          updated: 1,
-          author: 1,
-          categories: 1,
-          tags: 1,
-          featuredMedia: 1,
-          featuredImage: 1,
-          featured_img_url: 1,
-          featured_image: 1,
-          featuredImageUrl: 1,
-        }
+    const startTime = Date.now();
+    console.log('?? [BUILD] Starting to fetch ALL articles from MongoDB...');
+
+    try {
+      const db = await getMongoConnection();
+      const articlesCollection = db.collection('articles');
+
+      const prioritySlugsRaw = shouldUseIncludeSlugs()
+        ? (process.env.INCLUDE_SLUGS || '')
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean)
+        : [];
+
+      if (isDevMode() && (process.env.INCLUDE_SLUGS || '').trim() && prioritySlugsRaw.length === 0) {
+        console.log('?? [BUILD] Skipping INCLUDE_SLUGS in dev (set DEV_INCLUDE_SLUGS=1 to enable).');
       }
-    )
-      // Sort on indexed _id to avoid "sort exceeded memory limit" on large collections.
-      .sort({ _id: -1 })
-      .limit(limit)
-      .toArray();
 
-    let articles = baseArticles;
+      // Get total count first for progress tracking
+      const totalCount = await articlesCollection.countDocuments();
+      console.log(`?? [BUILD] Found ${totalCount} articles in database`);
 
-    // Force-include priority slugs (e.g., Arabic) even if outside the base limit
-    if (prioritySlugsRaw.length) {
-      const decodeSafe = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
-      const prioritySlugs = Array.from(new Set(prioritySlugsRaw.flatMap(s => [s, decodeSafe(s)])));
+      if (totalCount > limit) {
+        console.warn(`?? [BUILD] Will fetch ${limit} base articles (set MAX_SSG_ARTICLES to raise). Priority slugs will still be added.`);
+      }
 
-      const extraArticles = await articlesCollection.find(
-        {
-          $or: [
-            { slug: { $in: prioritySlugs } },
-            { 'slug.current': { $in: prioritySlugs } }
-          ]
-        },
-        {
-          projection: {
-            _id: 1,
-            slug: 1,
-            title: 1,
-            content: 1,
-            contentV2: 1,
-            contentBlocks: 1,
-            recipeBlocks: 1,
-            imageBlocks: 1,
-            excerpt: 1,
-            date: 1,
-            modified: 1,
-            updated: 1,
-            author: 1,
-            categories: 1,
-            tags: 1,
-            featuredMedia: 1,
-            featuredImage: 1,
-            featured_img_url: 1,
-            featured_image: 1,
-            featuredImageUrl: 1,
+      const projection = {
+        _id: 1,
+        slug: 1,
+        title: 1,
+        content: 1,
+        contentV2: 1,
+        contentBlocks: 1,
+        recipeBlocks: 1,
+        imageBlocks: 1,
+        excerpt: 1,
+        date: 1,
+        modified: 1,
+        updated: 1,
+        author: 1,
+        categories: 1,
+        tags: 1,
+        featuredMedia: 1,
+        featuredImage: 1,
+        featured_img_url: 1,
+        featured_image: 1,
+        featuredImageUrl: 1,
+      };
+
+      // Fetch only fields needed to render article pages statically
+      console.log(`?? [BUILD] Fetching up to ${limit} base articles from MongoDB (fields needed for SSG)...`);
+      const baseArticles = await articlesCollection
+        .find({}, { projection })
+        // Sort on indexed _id to avoid in-memory sort limits.
+        .sort({ _id: -1 })
+        .limit(limit)
+        .toArray();
+
+      let articles = baseArticles;
+
+      // Force-include priority slugs even if outside the base limit
+      if (prioritySlugsRaw.length) {
+        const decodeSafe = (s: string) => {
+          try { return decodeURIComponent(s); } catch { return s; }
+        };
+        const prioritySlugs = Array.from(new Set(prioritySlugsRaw.flatMap(s => [s, decodeSafe(s)])));
+
+        const extraArticles = await articlesCollection
+          .find(
+            {
+              $or: [
+                { slug: { $in: prioritySlugs } },
+                { 'slug.current': { $in: prioritySlugs } },
+              ],
+            },
+            { projection },
+          )
+          .toArray();
+
+        const seen = new Set(articles.map(a => a._id?.toString() || (typeof a.slug === 'object' ? a.slug?.current : a.slug)));
+        for (const doc of extraArticles) {
+          const key = doc._id?.toString() || (typeof doc.slug === 'object' ? doc.slug?.current : doc.slug);
+          if (!seen.has(key)) {
+            articles.push(doc);
+            seen.add(key);
           }
         }
-      ).toArray();
-
-      const seen = new Set(articles.map(a => a._id?.toString() || (typeof a.slug === 'object' ? a.slug?.current : a.slug)));
-      for (const doc of extraArticles) {
-        const key = doc._id?.toString() || (typeof doc.slug === 'object' ? doc.slug?.current : doc.slug);
-        if (!seen.has(key)) {
-          articles.push(doc);
-          seen.add(key);
-        }
+        console.log(`?? [BUILD] Added ${articles.length - baseArticles.length} priority slug articles (INCLUDE_SLUGS).`);
       }
-      console.log(`📌 [BUILD] Added ${articles.length - baseArticles.length} priority slug articles (INCLUDE_SLUGS).`);
+
+      const processedArticles = articles.map(doc => ({
+        _id: doc._id?.toString(),
+        ...doc,
+      }));
+
+      const endTime = Date.now();
+      const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+      console.log(`? [BUILD] Successfully fetched ${processedArticles.length} articles in ${duration}s`);
+      console.log(`?? [BUILD] Average: ${(processedArticles.length / (endTime - startTime) * 1000).toFixed(0)} articles/second`);
+
+      cachedAllArticles = processedArticles;
+      cachedAllArticlesAt = Date.now();
+      return processedArticles;
+    } catch (error) {
+      const endTime = Date.now();
+      const duration = ((endTime - startTime) / 1000).toFixed(2);
+      console.error(`? [BUILD] Error fetching articles after ${duration}s:`, error);
+      return [];
+    } finally {
+      inFlightAllArticlesPromise = null;
     }
+  })();
 
-    const processedArticles = articles.map(doc => ({
-      _id: doc._id?.toString(),
-      ...doc,
-    }));
-
-    const endTime = Date.now();
-    const duration = ((endTime - startTime) / 1000).toFixed(2);
-
-    console.log(`✅ [BUILD] Successfully fetched ${processedArticles.length} articles in ${duration}s`);
-    console.log(`📊 [BUILD] Average: ${(processedArticles.length / (endTime - startTime) * 1000).toFixed(0)} articles/second`);
-
-    return processedArticles;
-  } catch (error) {
-    const endTime = Date.now();
-    const duration = ((endTime - startTime) / 1000).toFixed(2);
-    console.error(`❌ [BUILD] Error fetching articles after ${duration}s:`, error);
-    return [];
-  }
+  return inFlightAllArticlesPromise;
 }
 
 export async function getArticleBySlugFromMongo(slug: string) {
