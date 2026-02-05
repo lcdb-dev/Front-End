@@ -32,6 +32,7 @@ jobs:
           MAX_SSG_ARTICLES: ${{ vars.MAX_SSG_ARTICLES }}
           INCLUDE_SLUGS: ${{ vars.INCLUDE_SLUGS }}
           USE_LOCAL_JSON: ${{ vars.USE_LOCAL_JSON }}
+          BUILD_ONLY_ARTICLE_PAGES: ${{ vars.BUILD_ONLY_ARTICLE_PAGES }}
 
       - name: Sync dist to Scaleway Object Storage
         uses: jakejarvis/s3-sync-action@v0.5.1

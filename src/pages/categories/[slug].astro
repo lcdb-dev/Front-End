@@ -2,11 +2,16 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getAllCategoriesFromMongo, getArticlesFromMongo } from '../../lib/mongo.server';
 import { processArticleImageUrl } from '../../utils/cdnUrlReplacer';
+import { BUILD_ONLY_ARTICLE_PAGES } from '../../utils/buildFlags';
 
 // Pure SSG - generate ALL categories at build time
 export const prerender = true;
 
 export async function getStaticPaths() {
+  if (BUILD_ONLY_ARTICLE_PAGES) {
+    return [];
+  }
+
   const categories = await getAllCategoriesFromMongo();
 
   // For SSG: Generate ALL categories at build time

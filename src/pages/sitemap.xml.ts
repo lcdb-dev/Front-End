@@ -1,32 +1,18 @@
 import { payloadFetch } from '../lib/payload.client';
 import { getAllArticlesFromMongo } from '../lib/mongo.server';
+import { BUILD_ONLY_ARTICLE_PAGES } from '../utils/buildFlags';
 
 export async function GET() {
   const baseUrl = import.meta.env.PUBLIC_SITE_URL || 'https://lacuisinedebernard.com';
   const urls = [];
   const today = new Date().toISOString().split('T')[0];
+  const includeCategoryAndTagRoutes = !BUILD_ONLY_ARTICLE_PAGES;
 
   // Root home
   urls.push({
     loc: `${baseUrl}/`,
     priority: '1.0',
     changefreq: 'daily',
-    lastmod: today,
-  });
-
-  // Categories page
-  urls.push({
-    loc: `${baseUrl}/categories`,
-    priority: '0.9',
-    changefreq: 'weekly',
-    lastmod: today,
-  });
-
-  // Tags page
-  urls.push({
-    loc: `${baseUrl}/tags`,
-    priority: '0.9',
-    changefreq: 'weekly',
     lastmod: today,
   });
 
@@ -37,6 +23,22 @@ export async function GET() {
     changefreq: 'weekly',
     lastmod: today,
   });
+
+  if (includeCategoryAndTagRoutes) {
+    urls.push({
+      loc: `${baseUrl}/categories`,
+      priority: '0.9',
+      changefreq: 'weekly',
+      lastmod: today,
+    });
+
+    urls.push({
+      loc: `${baseUrl}/tags`,
+      priority: '0.9',
+      changefreq: 'weekly',
+      lastmod: today,
+    });
+  }
 
   // Fetch all articles (Mongo first, Payload fallback)
   let articles: any[] = [];
@@ -71,46 +73,48 @@ export async function GET() {
     });
   }
 
-  // Fetch categories from Payload (optional)
-  try {
-    const catRes: any = await payloadFetch({
-      collection: 'categories',
-      query: { depth: 0, limit: 500 },
-    });
-    const categories = catRes?.docs || catRes || [];
-    categories.forEach((cat: any) => {
-      const slug = typeof cat.slug === 'string' ? cat.slug : cat.slug?.current;
-      if (!slug) return;
-      urls.push({
-        loc: `${baseUrl}/categories/${slug}`,
-        priority: '0.7',
-        changefreq: 'weekly',
-        lastmod: today,
+  if (includeCategoryAndTagRoutes) {
+    // Fetch categories from Payload (optional)
+    try {
+      const catRes: any = await payloadFetch({
+        collection: 'categories',
+        query: { depth: 0, limit: 500 },
       });
-    });
-  } catch (err) {
-    console.warn('[SITEMAP] Categories fetch skipped', err);
-  }
+      const categories = catRes?.docs || catRes || [];
+      categories.forEach((cat: any) => {
+        const slug = typeof cat.slug === 'string' ? cat.slug : cat.slug?.current;
+        if (!slug) return;
+        urls.push({
+          loc: `${baseUrl}/categories/${slug}`,
+          priority: '0.7',
+          changefreq: 'weekly',
+          lastmod: today,
+        });
+      });
+    } catch (err) {
+      console.warn('[SITEMAP] Categories fetch skipped', err);
+    }
 
-  // Fetch tags from Payload (optional)
-  try {
-    const tagRes: any = await payloadFetch({
-      collection: 'tags',
-      query: { depth: 0, limit: 500 },
-    });
-    const tags = tagRes?.docs || tagRes || [];
-    tags.forEach((tag: any) => {
-      const slug = typeof tag.slug === 'string' ? tag.slug : tag.slug?.current;
-      if (!slug) return;
-      urls.push({
-        loc: `${baseUrl}/tags/${slug}`,
-        priority: '0.7',
-        changefreq: 'weekly',
-        lastmod: today,
+    // Fetch tags from Payload (optional)
+    try {
+      const tagRes: any = await payloadFetch({
+        collection: 'tags',
+        query: { depth: 0, limit: 500 },
       });
-    });
-  } catch (err) {
-    console.warn('[SITEMAP] Tags fetch skipped', err);
+      const tags = tagRes?.docs || tagRes || [];
+      tags.forEach((tag: any) => {
+        const slug = typeof tag.slug === 'string' ? tag.slug : tag.slug?.current;
+        if (!slug) return;
+        urls.push({
+          loc: `${baseUrl}/tags/${slug}`,
+          priority: '0.7',
+          changefreq: 'weekly',
+          lastmod: today,
+        });
+      });
+    } catch (err) {
+      console.warn('[SITEMAP] Tags fetch skipped', err);
+    }
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

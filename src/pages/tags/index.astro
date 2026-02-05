@@ -1,14 +1,18 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { payloadFetch } from '../../lib/payload.client';
+import { BUILD_ONLY_ARTICLE_PAGES } from '../../utils/buildFlags';
 
-// Fetch all tags from Payload
-const result = await payloadFetch({
-  endpoint: '/collections/tags?limit=1000',
-  method: 'GET'
-});
+let tagsWithCounts: any[] = [];
 
-const tagsWithCounts = result?.docs || [];
+if (!BUILD_ONLY_ARTICLE_PAGES) {
+  const result = await payloadFetch({
+    endpoint: '/collections/tags?limit=1000',
+    method: 'GET'
+  });
+
+  tagsWithCounts = result?.docs || [];
+}
 
 const tagsWithDetails = (Array.isArray(tagsWithCounts) ? tagsWithCounts : []).map((tag: any) => ({
   ...tag,
@@ -86,6 +90,12 @@ const getConfig = (name: string) => {
 
     {/* Tags Grid */}
     <div class="relative container mx-auto px-4 -mt-12 pb-20 z-20">
+      {BUILD_ONLY_ARTICLE_PAGES && (
+        <div class="mb-8 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          Tag pages are excluded in article-only build mode (`BUILD_ONLY_ARTICLE_PAGES=1`).
+        </div>
+      )}
+
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {tagsWithDetails.map((tag: any) => {
           const config = getConfig(tag.title);

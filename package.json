@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "set NODE_ENV=development && astro dev",
-    "build": "set NODE_ENV=production && npm run generate-search-index && astro build",
+    "build": "node scripts/build-site.mjs",
     "preview": "astro preview",
     "astro": "astro",
     "payload": "tsx server.ts",
