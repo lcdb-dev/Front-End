@@ -1,31 +1,50 @@
-function decodeHtmlEntities(text) {
+function decodeNamedEntities(text) {
   const entities = {
     '&nbsp;': ' ',
     '&amp;': '&',
     '&lt;': '<',
     '&gt;': '>',
     '&quot;': '"',
+    '&apos;': "'",
     '&#39;': "'",
-    '&hellip;': '…',
-    '&mdash;': '—',
-    '&ndash;': '–',
-    '&lsquo;': ''',
-    '&rsquo;': ''',
+    '&lsquo;': "'",
+    '&rsquo;': "'",
     '&ldquo;': '"',
     '&rdquo;': '"',
-    '&bull;': '•',
-    '&deg;': '°',
-    '&frac12;': '½',
-    '&frac14;': '¼',
-    '&frac34;': '¾',
+    '&hellip;': '\u2026',
+    '&mdash;': '\u2014',
+    '&ndash;': '\u2013',
+    '&bull;': '\u2022',
+    '&deg;': '\u00B0',
+    '&frac12;': '\u00BD',
+    '&frac14;': '\u00BC',
+    '&frac34;': '\u00BE',
   };
 
-  return text.replace(/&[a-zA-Z0-9#]+;/g, (entity) => {
-    return entities[entity] || entity;
-  });
+  return text.replace(/&[a-zA-Z0-9#]+;/g, (entity) => entities[entity] || entity);
 }
 
-export function stripHtml(html = "") {
-  const text = html.replace(/<[^>]*>?/gm, "");
-  return decodeHtmlEntities(text).trim();
+function decodeHtmlEntities(text = '') {
+  if (!text) return '';
+
+  let decoded = text;
+
+  decoded = decoded.replace(/&#(\d+);/g, (_, code) => {
+    const intCode = Number(code);
+    return Number.isFinite(intCode) ? String.fromCharCode(intCode) : _;
+  });
+
+  decoded = decoded.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => {
+    const intCode = Number.parseInt(hex, 16);
+    return Number.isFinite(intCode) ? String.fromCharCode(intCode) : _;
+  });
+
+  return decodeNamedEntities(decoded);
 }
+
+export function stripHtml(html = '') {
+  const input = typeof html === 'string' ? html : '';
+  const withoutTags = input.replace(/<[^>]*>?/gm, ' ');
+  return decodeHtmlEntities(withoutTags).replace(/\s+/g, ' ').trim();
+}
+

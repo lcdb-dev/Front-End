@@ -5,7 +5,11 @@ const { recipe } = Astro.props;
 const jsonLd = buildRecipeJsonLd(recipe);
 ---
 
-<script
-  type="application/ld+json"
-  set:html={JSON.stringify(jsonLd)}
-></script>
+{
+  jsonLd && (
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify(jsonLd)}
+    ></script>
+  )
+}

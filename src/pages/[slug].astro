@@ -18,6 +18,7 @@ import {
   buildArticleJsonLd,
   buildBreadcrumbJsonLd,
 } from "../utils/buildArticleJsonLd";
+import { buildRecipeJsonLd } from "../utils/buildRecipeJsonLd";
 import { processArticleImageUrl } from "../utils/cdnUrlReplacer";
 import { renderArticleContent } from "../utils/renderArticleContent";
 
@@ -246,6 +247,7 @@ const breadcrumbJsonLd = buildBreadcrumbJsonLd(
   article.title,
   "https://lacuisinedebernard.com",
 );
+const recipeJsonLd = buildRecipeJsonLd(article);
 
 // Format date
 const date = article.date
@@ -269,7 +271,7 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
   description={excerpt}
   canonical={articleUrl}
   image={image}
-  jsonLd={[articleJsonLd, breadcrumbJsonLd]}
+  jsonLd={[articleJsonLd, breadcrumbJsonLd, recipeJsonLd].filter(Boolean)}
   slug={slug}
 >
   <!-- Main Article Content -->
