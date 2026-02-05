@@ -30,14 +30,12 @@ jobs:
           NODE_ENV: production
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           MAX_SSG_ARTICLES: ${{ vars.MAX_SSG_ARTICLES }}
-          INCLUDE_SLUGS: ${{ vars.INCLUDE_SLUGS }}
+          INCLUDE_SLUGS: ${{ github.event.client_payload.slug && format('{0},{1}', vars.INCLUDE_SLUGS, github.event.client_payload.slug) || vars.INCLUDE_SLUGS }}
           USE_LOCAL_JSON: ${{ vars.USE_LOCAL_JSON }}
           BUILD_ONLY_ARTICLE_PAGES: ${{ vars.BUILD_ONLY_ARTICLE_PAGES }}
 
       - name: Sync dist to Scaleway Object Storage
         uses: jakejarvis/s3-sync-action@v0.5.1
-        with:
-          args: --delete
         env:
           AWS_S3_BUCKET: ${{ secrets.SCW_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}

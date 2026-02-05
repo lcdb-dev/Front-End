@@ -7,6 +7,13 @@ interface Props {
 
 const { articles = [] } = Astro.props;
 const sliderArticles = articles.slice(0, 12); // Show 12 articles (4 visible at a time)
+
+const getArticleSlug = (article: any) => {
+  if (!article) return '';
+  if (typeof article.slug === 'string') return article.slug;
+  if (article.slug?.current) return article.slug.current;
+  return '';
+};
 ---
 
 <div class="w-full bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-gray-800 dark:to-gray-900 py-8">
@@ -16,7 +23,7 @@ const sliderArticles = articles.slice(0, 12); // Show 12 articles (4 visible at 
       <div id="article-slider" class="flex transition-transform duration-500 ease-out gap-4">
         {sliderArticles.map((article) => {
           const imageUrl = processArticleImageUrl(article) || 'https://via.placeholder.com/400x300?text=' + encodeURIComponent(article.title);
-          const articleSlug = article.slug || article.slug?.current;
+          const articleSlug = getArticleSlug(article);
           return (
           <div class="min-w-[calc(25%-1rem)] flex-shrink-0">
             <a href={`/${articleSlug}`} class="block relative group h-64 rounded-lg overflow-hidden">

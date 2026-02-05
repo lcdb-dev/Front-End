@@ -8,27 +8,30 @@ import RecipesSections from "../components/RecipesSections.astro";
 import VideoSection from "../components/VideoSection.astro";
 import GlobalAbout from "../components/GlobalAbout.astro";
 import GlobalFooter from "../components/GlobalFooter.astro";
-import { getArticlesPage as getArticlesPagePayload, getArticlesCount } from "../lib/payload.client";
-import { getArticlesFromMongo, getArticlesCountFromMongo } from "../lib/mongo.server";
+import { getArticlesPage as getArticlesPagePayload } from "../lib/payload.client";
+import { getAllArticlesFromMongo } from "../lib/mongo.server";
 // Enable SSG with ISR for homepage
 export const prerender = true;
 
 // Static homepage - show first page only for SSG
 const currentPage = 1; // Always show page 1 for SSG
 const articlesPerPage = 10;
+const getBuildLimit = () => {
+  const envLimit = Number(process.env.MAX_SSG_ARTICLES);
+  return Number.isFinite(envLimit) && envLimit > 0 ? envLimit : 50;
+};
 
-// Build-time pagination: fetch directly from MongoDB for featured images
-let articles = await getArticlesFromMongo(currentPage, articlesPerPage);
+// Build-time article source should match static detail route generation.
+let allBuildArticles = await getAllArticlesFromMongo();
 
 // If MongoDB fails, fall back to Payload
-if (!articles || articles.length === 0) {
-  const paginatedArticles = await getArticlesPagePayload(currentPage, articlesPerPage);
-  articles = Array.isArray(paginatedArticles) ? paginatedArticles : [];
+if (!allBuildArticles || allBuildArticles.length === 0) {
+  const payloadResponse: any = await getArticlesPagePayload(currentPage, getBuildLimit());
+  allBuildArticles = Array.isArray(payloadResponse) ? payloadResponse : [];
 }
 
-// Get total count from MongoDB
-const totalCount = await getArticlesCountFromMongo();
-const totalPages = Math.max(1, Math.ceil(totalCount / articlesPerPage));
+const articles = allBuildArticles.slice(0, articlesPerPage);
+const totalPages = Math.max(1, Math.ceil(allBuildArticles.length / articlesPerPage));
 
 // Helper functions
 const decodeHtmlEntities = (text: string) => {

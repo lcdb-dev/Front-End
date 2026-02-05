@@ -4,6 +4,17 @@ import { payloadFetch } from '../../lib/payload.client';
 import { getAllArticlesFromMongo } from '../../lib/mongo.server';
 
 export const prerender = true;
+const getBuildLimit = () => {
+  const envLimit = Number(process.env.MAX_SSG_ARTICLES);
+  return Number.isFinite(envLimit) && envLimit > 0 ? envLimit : 50;
+};
+
+const articleSlug = (article: any) => {
+  if (!article) return '';
+  if (typeof article.slug === 'string') return article.slug;
+  if (article.slug?.current) return article.slug.current;
+  return '';
+};
 
 export async function getStaticPaths() {
   // Use MongoDB as primary data source during build time
@@ -11,17 +22,17 @@ export async function getStaticPaths() {
   
   // Fallback to Payload if MongoDB fails
   if (!allArticles || allArticles.length === 0) {
-    const result = await payloadFetch({
-      endpoint: '/collections/articles?limit=1000',
-      method: 'GET'
+    const result: any = await payloadFetch({
+      collection: 'articles',
+      query: { depth: 1, limit: getBuildLimit() }
     });
-    allArticles = result?.docs || [];
+    allArticles = result?.docs || result || [];
   }
   
   const articlesPerPage = 12;
   const totalPages = Math.ceil(allArticles.length / articlesPerPage);
 
-  const paths = Array.from({ length: totalPages }, (_, i) => ({
+  const paths = Array.from({ length: Math.max(0, totalPages - 1) }, (_, i) => ({
     params: { page: String(i + 2) },
   }));
 
@@ -32,12 +43,14 @@ const { page } = Astro.params;
 const currentPage = parseInt(page as string);
 const articlesPerPage = 12;
 
-const result = await payloadFetch({
-  endpoint: '/collections/articles?depth=2&limit=1000',
-  method: 'GET'
-});
-
-const allArticles = result?.docs || [];
+let allArticles = await getAllArticlesFromMongo();
+if (!allArticles || allArticles.length === 0) {
+  const result: any = await payloadFetch({
+    collection: 'articles',
+    query: { depth: 2, limit: getBuildLimit() }
+  });
+  allArticles = result?.docs || result || [];
+}
 const articles = (Array.isArray(allArticles) ? allArticles : []).filter((a: any) => a && a.title);
 const totalPages = Math.ceil(articles.length / articlesPerPage);
 const startIdx = (currentPage - 1) * articlesPerPage;
@@ -103,7 +116,7 @@ const formatDate = (dateStr: string) => {
                   </div>
                 )}
                 <h2 class="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
-                  <a href={`/articles/${article.slug?.current}`} class="hover:text-blue-600">
+                  <a href={`/articles/${articleSlug(article)}`} class="hover:text-blue-600">
                     {article.title}
                   </a>
                 </h2>

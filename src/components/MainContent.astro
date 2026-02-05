@@ -15,6 +15,13 @@ const articlesPerPage = 10;
 const displayArticles = latestArticles;
 const totalPages = propTotalPages || Math.max(1, Math.ceil(latestArticles.length / articlesPerPage));
 
+const getArticleSlug = (article: any) => {
+  if (!article) return '';
+  if (typeof article.slug === 'string') return article.slug;
+  if (article.slug?.current) return article.slug.current;
+  return '';
+};
+
 const socialShareLinks = {
   facebook: (url: string, title: string) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
   twitter: (url: string, title: string) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`,
@@ -152,7 +159,7 @@ const bookLinks = [
 
                   <!-- Read More Button -->
                   <a
-                    href={`/${article.slug || article.slug?.current}`}
+                    href={`/${getArticleSlug(article)}`}
                     class="inline-block text-orange-600 dark:text-orange-400 font-semibold hover:underline mb-4"
                   >
                     Read More →
@@ -161,7 +168,7 @@ const bookLinks = [
                   <!-- Social Share Icons -->
                   <div class="flex gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                     <a
-                      href={socialShareLinks.facebook(`https://lacuisinedebernard.com/${article.slug || article.slug?.current}`, article.title)}
+                      href={socialShareLinks.facebook(`https://lacuisinedebernard.com/${getArticleSlug(article)}`, article.title)}
                       target="_blank"
                       rel="noopener noreferrer"
                       class="text-blue-600 hover:text-blue-700 transition-colors"
@@ -170,7 +177,7 @@ const bookLinks = [
                       <i class="fab fa-facebook-f w-5 h-5"></i>
                     </a>
                     <a
-                      href={socialShareLinks.twitter(`https://lacuisinedebernard.com/${article.slug || article.slug?.current}`, article.title)}
+                      href={socialShareLinks.twitter(`https://lacuisinedebernard.com/${getArticleSlug(article)}`, article.title)}
                       target="_blank"
                       rel="noopener noreferrer"
                       class="text-black hover:text-gray-700 transition-colors dark:text-white dark:hover:text-gray-300"
@@ -179,7 +186,7 @@ const bookLinks = [
                       <i class="fab fa-x-twitter w-5 h-5"></i>
                     </a>
                     <a
-                      href={socialShareLinks.pinterest(`https://lacuisinedebernard.com/${article.slug || article.slug?.current}`, article.title)}
+                      href={socialShareLinks.pinterest(`https://lacuisinedebernard.com/${getArticleSlug(article)}`, article.title)}
                       target="_blank"
                       rel="noopener noreferrer"
                       class="text-red-600 hover:text-red-700 transition-colors"
@@ -188,7 +195,7 @@ const bookLinks = [
                       <i class="fab fa-pinterest w-5 h-5"></i>
                     </a>
                     <a
-                      href={`mailto:?subject=${encodeURIComponent(article.title)}&body=${encodeURIComponent(`Check out this recipe: ${article.title} - https://lacuisinedebernard.com/${article.slug || article.slug?.current}`)}`}
+                      href={`mailto:?subject=${encodeURIComponent(article.title)}&body=${encodeURIComponent(`Check out this recipe: ${article.title} - https://lacuisinedebernard.com/${getArticleSlug(article)}`)}`}
                       class="text-gray-600 hover:text-gray-700 transition-colors"
                       title="Share via Email"
                     >
