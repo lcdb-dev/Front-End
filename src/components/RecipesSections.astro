@@ -1,5 +1,4 @@
 ---
-import { getArticlesFromMongo } from "../lib/mongo.server";
 import { processArticleImageUrl } from '../utils/cdnUrlReplacer';
 
 interface Props {
@@ -8,13 +7,34 @@ interface Props {
 
 const { allArticles = [] } = Astro.props;
 
-// Fetch Sweet and Savory articles directly from MongoDB
-const sweetArticles = await getArticlesFromMongo(1, 6, 'Sweet');
-const savoryArticles = await getArticlesFromMongo(1, 6, 'Savory');
+const toText = (value: any) => String(value || '').trim().toLowerCase();
 
-// Use the articles directly (they're already filtered by category)
-const displaySweet = sweetArticles.length > 0 ? sweetArticles : allArticles.slice(0, 6);
-const displaySavory = savoryArticles.length > 0 ? savoryArticles : allArticles.slice(0, 6);
+const articleCategories = (article: any): string[] => {
+  if (!article || !Array.isArray(article.categories)) return [];
+
+  return article.categories
+    .map((cat: any) => {
+      if (typeof cat === 'string') return toText(cat);
+      return toText(cat?.title || cat?.name || cat?.slug?.current || cat?.slug);
+    })
+    .filter(Boolean);
+};
+
+const includesAny = (values: string[], targets: string[]) =>
+  values.some((value) => targets.some((target) => value.includes(target)));
+
+const sweetKeywords = ['sweet', 'dessert', 'cake', 'cookie', 'chocolate', 'tarte', 'pastry'];
+const savoryKeywords = ['savory', 'salty', 'meat', 'fish', 'chicken', 'pasta', 'salad'];
+
+const sweetArticles = allArticles.filter((article: any) =>
+  includesAny(articleCategories(article), sweetKeywords)
+);
+const savoryArticles = allArticles.filter((article: any) =>
+  includesAny(articleCategories(article), savoryKeywords)
+);
+
+const displaySweet = sweetArticles.length > 0 ? sweetArticles.slice(0, 6) : allArticles.slice(0, 6);
+const displaySavory = savoryArticles.length > 0 ? savoryArticles.slice(0, 6) : allArticles.slice(6, 12);
 ---
 
 <!-- Sweet Recipes Section -->

@@ -24,6 +24,8 @@ const articleOnlyBuild =
 
 try {
   if (articleOnlyBuild) {
+    // In article-only mode we force local JSON to avoid Mongo timeouts during CI/deploy builds.
+    env.USE_LOCAL_JSON = '1';
     console.log('BUILD_ONLY_ARTICLE_PAGES enabled: skipping search index generation.');
   } else {
     run('npm run generate-search-index', env);
@@ -32,10 +34,14 @@ try {
   run('npx astro build', env);
 
   if (articleOnlyBuild) {
-    // Keep homepage + article routes, remove category/tag static outputs before deploy sync.
+    // Keep homepage + article routes, remove non-article static outputs before deploy sync.
     rmSync('dist/categories', { recursive: true, force: true });
     rmSync('dist/tags', { recursive: true, force: true });
-    console.log('Removed dist/categories and dist/tags for article-only deploy.');
+    rmSync('dist/search', { recursive: true, force: true });
+    rmSync('dist/author', { recursive: true, force: true });
+    rmSync('dist/test-golden-recipe', { recursive: true, force: true });
+    rmSync('dist/test-translation', { recursive: true, force: true });
+    console.log('Removed category/tag/search/author/test routes for article-only deploy.');
   }
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);

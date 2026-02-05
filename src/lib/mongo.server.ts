@@ -1,4 +1,4 @@
-import { MongoClient, Db, ObjectId } from 'mongodb';
+import { MongoClient, ObjectId, type Db } from 'mongodb';
 import { config } from 'dotenv';
 import fs from 'fs';
 import path from 'path';
@@ -238,17 +238,17 @@ export async function getAllArticlesFromMongo() {
       try {
         const items = getPreparedArticles();
         const cappedItems = items.slice(0, limit);
-        console.log(`?? [BUILD] Using prepared-articles.json with ${cappedItems.length}/${items.length} articles (USE_LOCAL_JSON=1, MAX_SSG_ARTICLES=${limit})`);
+        console.log(`[BUILD] Using prepared-articles.json with ${cappedItems.length}/${items.length} articles (USE_LOCAL_JSON=1, MAX_SSG_ARTICLES=${limit})`);
         cachedAllArticles = cappedItems;
         cachedAllArticlesAt = Date.now();
         return cappedItems;
       } catch (err) {
-        console.error('? [BUILD] Failed to read prepared-articles.json, falling back to Mongo:', err);
+        console.error('[BUILD] Failed to read prepared-articles.json, falling back to Mongo:', err);
       }
     }
 
     const startTime = Date.now();
-    console.log('?? [BUILD] Starting to fetch ALL articles from MongoDB...');
+    console.log('[BUILD] Starting to fetch ALL articles from MongoDB...');
 
     try {
       const db = await getMongoConnection();
@@ -262,15 +262,19 @@ export async function getAllArticlesFromMongo() {
         : [];
 
       if (isDevMode() && (process.env.INCLUDE_SLUGS || '').trim() && prioritySlugsRaw.length === 0) {
-        console.log('?? [BUILD] Skipping INCLUDE_SLUGS in dev (set DEV_INCLUDE_SLUGS=1 to enable).');
+        console.log('[BUILD] Skipping INCLUDE_SLUGS in dev (set DEV_INCLUDE_SLUGS=1 to enable).');
       }
 
-      // Get total count first for progress tracking
-      const totalCount = await articlesCollection.countDocuments();
-      console.log(`?? [BUILD] Found ${totalCount} articles in database`);
+      // Count can be skipped in dev to speed up route generation.
+      if (isDevMode()) {
+        console.log(`[BUILD] Dev mode: fetching ${limit} articles (count skipped).`);
+      } else {
+        const totalCount = await articlesCollection.countDocuments();
+        console.log(`[BUILD] Found ${totalCount} articles in database`);
 
-      if (totalCount > limit) {
-        console.warn(`?? [BUILD] Will fetch ${limit} base articles (set MAX_SSG_ARTICLES to raise). Priority slugs will still be added.`);
+        if (totalCount > limit) {
+          console.warn(`[BUILD] Will fetch ${limit} base articles (set MAX_SSG_ARTICLES to raise). Priority slugs will still be added.`);
+        }
       }
 
       const projection = {
@@ -297,11 +301,12 @@ export async function getAllArticlesFromMongo() {
       };
 
       // Fetch only fields needed to render article pages statically
-      console.log(`?? [BUILD] Fetching up to ${limit} base articles from MongoDB (fields needed for SSG)...`);
+      console.log(`[BUILD] Fetching up to ${limit} base articles from MongoDB (fields needed for SSG)...`);
       const baseArticles = await articlesCollection
         .find({}, { projection })
         // Sort on indexed _id to avoid in-memory sort limits.
         .sort({ _id: -1 })
+        .maxTimeMS(60_000)
         .limit(limit)
         .toArray();
 
@@ -334,7 +339,7 @@ export async function getAllArticlesFromMongo() {
             seen.add(key);
           }
         }
-        console.log(`?? [BUILD] Added ${articles.length - baseArticles.length} priority slug articles (INCLUDE_SLUGS).`);
+        console.log(`[BUILD] Added ${articles.length - baseArticles.length} priority slug articles (INCLUDE_SLUGS).`);
       }
 
       const processedArticles = articles.map(doc => ({
@@ -345,8 +350,8 @@ export async function getAllArticlesFromMongo() {
       const endTime = Date.now();
       const duration = ((endTime - startTime) / 1000).toFixed(2);
 
-      console.log(`? [BUILD] Successfully fetched ${processedArticles.length} articles in ${duration}s`);
-      console.log(`?? [BUILD] Average: ${(processedArticles.length / (endTime - startTime) * 1000).toFixed(0)} articles/second`);
+      console.log(`[BUILD] Successfully fetched ${processedArticles.length} articles in ${duration}s`);
+      console.log(`[BUILD] Average: ${(processedArticles.length / (endTime - startTime) * 1000).toFixed(0)} articles/second`);
 
       cachedAllArticles = processedArticles;
       cachedAllArticlesAt = Date.now();
@@ -354,7 +359,7 @@ export async function getAllArticlesFromMongo() {
     } catch (error) {
       const endTime = Date.now();
       const duration = ((endTime - startTime) / 1000).toFixed(2);
-      console.error(`? [BUILD] Error fetching articles after ${duration}s:`, error);
+      console.error(`[BUILD] Error fetching articles after ${duration}s:`, error);
       return [];
     } finally {
       inFlightAllArticlesPromise = null;
