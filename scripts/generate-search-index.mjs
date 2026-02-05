@@ -10,6 +10,12 @@ async function generateSearchIndex() {
   try {
     console.log('[SEARCH] Generating search index...');
 
+    const searchLimitRaw = Number(process.env.SEARCH_INDEX_LIMIT);
+    if (Number.isFinite(searchLimitRaw) && searchLimitRaw > 0) {
+      process.env.MAX_SSG_ARTICLES = String(searchLimitRaw);
+      console.log(`[SEARCH] Using SEARCH_INDEX_LIMIT=${searchLimitRaw}`);
+    }
+
     // Dynamic import keeps this script compatible with tsx in CJS/ESM contexts.
     const { getAllArticlesFromMongo: getArticles } = await import('../src/lib/mongo.server.ts');
     const articles = await getArticles();
