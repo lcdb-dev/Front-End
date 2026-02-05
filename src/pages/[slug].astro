@@ -275,26 +275,27 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
   slug={slug}
 >
   <!-- Main Article Content -->
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+  <div class="bg-[#fdf6e9]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Left Section: Article Content -->
       <div class="lg:col-span-2">
         <!-- Breadcrumb Navigation -->
         <nav class="mb-6 text-sm">
-          <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+          <div class="flex items-center gap-2 text-gray-700">
             <a
               href="/"
-              class="hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+              class="hover:text-orange-600 transition-colors"
               >Home</a
             >
             <span>/</span>
             <a
               href="/articles"
-              class="hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+              class="hover:text-orange-600 transition-colors"
               >Articles</a
             >
             <span>/</span>
-            <span class="text-gray-900 dark:text-white font-semibold truncate"
+            <span class="text-gray-900 font-semibold truncate"
               >{title}</span
             >
           </div>
@@ -314,29 +315,29 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
         }
 
         <!-- Article Header -->
-        <article class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
-          <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+        <article class="bg-[#fffaf0] rounded-lg shadow p-6 mb-8 border border-[#eadfcb]">
+          <h1 class="text-4xl font-bold text-gray-900 mb-4">
             {title}
           </h1>
 
           <!-- Article Metadata -->
           <div
-            class="flex flex-wrap gap-4 mb-6 pb-6 border-b border-gray-200 dark:border-gray-700 text-sm"
+            class="flex flex-wrap gap-4 mb-6 pb-6 border-b border-[#e2d6c0] text-sm"
           >
             {
               date && (
-                <span class="text-gray-600 dark:text-gray-400">
+                <span class="text-gray-700">
                   <i class="fas fa-calendar-alt mr-2 text-orange-600" />
                   {date}
                 </span>
               )
             }
-            <span class="text-gray-600 dark:text-gray-400">
+            <span class="text-gray-700">
               <i class="fas fa-user mr-2 text-orange-600"></i>{author}
             </span>
             {
               article.categories && article.categories.length > 0 && (
-                <span class="text-gray-600 dark:text-gray-400">
+                <span class="text-gray-700">
                   <i class="fas fa-tag mr-2 text-orange-600" />
                   {article.categories.map((cat: any) => cat.title || cat.name).join(", ")}
                 </span>
@@ -345,17 +346,17 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
           </div>
 
           <!-- Article Content -->
-          <div class="prose dark:prose-invert max-w-none mb-8">
+          <div class="prose max-w-none mb-8">
             <div
-              class="article-content text-gray-700 dark:text-gray-300 leading-relaxed"
+              class="article-content text-gray-800 leading-relaxed"
               set:html={content}
             />
           </div>
 
           <!-- Social Share Icons -->
-          <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+          <div class="border-t border-[#e2d6c0] pt-6">
             <h3
-              class="text-lg font-semibold text-gray-900 dark:text-white mb-4"
+              class="text-lg font-semibold text-gray-900 mb-4"
             >
               Share this article
             </h3>
@@ -373,7 +374,7 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
                 href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(title)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-black hover:text-gray-700 transition-colors dark:text-white dark:hover:text-gray-300"
+                class="text-black hover:text-gray-700 transition-colors"
                 title="Share on X"
               >
                 <i class="fab fa-x-twitter w-6 h-6"></i>
@@ -399,8 +400,8 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
         </article>
 
         <!-- Comments Section - Using Giscus -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+        <div class="bg-[#fffaf0] rounded-lg shadow p-6 border border-[#eadfcb]">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6">
             Comments
           </h2>
           <div id="comments-section">
@@ -424,8 +425,8 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
         </div>
 
         <!-- You Might Like Section -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+        <div class="bg-[#fffaf0] rounded-lg shadow p-6 border border-[#eadfcb]">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6">
             You might like
           </h2>
           {
@@ -436,7 +437,7 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
                   return (
                     <a
                       href={`/${relatedArticle.slug}`}
-                      class="group bg-white dark:bg-gray-700 rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all transform hover:scale-105"
+                      class="group bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all transform hover:scale-105"
                     >
                       {imageUrl ? (
                         <div class="relative overflow-hidden bg-gray-200 h-48">
@@ -447,18 +448,18 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
                           />
                         </div>
                       ) : (
-                        <div class="relative overflow-hidden bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900 dark:to-orange-800 h-48 flex items-center justify-center">
-                          <div class="text-orange-600 dark:text-orange-400 text-4xl">
+                        <div class="relative overflow-hidden bg-gradient-to-br from-orange-100 to-amber-200 h-48 flex items-center justify-center">
+                          <div class="text-orange-600 text-4xl">
                             <i class="fas fa-utensils" />
                           </div>
                         </div>
                       )}
                       <div class="p-4">
-                        <h3 class="font-bold text-gray-900 dark:text-white mb-2 line-clamp-2 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                        <h3 class="font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-orange-600 transition-colors">
                           {relatedArticle.title || "Untitled Article"}
                         </h3>
                         {relatedArticle.excerpt && (
-                          <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
+                          <p class="text-sm text-gray-700 line-clamp-2 mb-3">
                             {relatedArticle.excerpt.length > 100
                               ? decodeHtmlEntities(
                                   relatedArticle.excerpt
@@ -473,7 +474,7 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
                           </p>
                         )}
                         {relatedArticle.date && (
-                          <span class="text-xs text-gray-500 dark:text-gray-500">
+                          <span class="text-xs text-gray-500">
                             {new Date(relatedArticle.date).toLocaleDateString()}
                           </span>
                         )}
@@ -483,9 +484,9 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
                 })}
               </div>
             ) : (
-              <div class="text-center text-gray-500 dark:text-gray-400 py-8">
+              <div class="text-center text-gray-600 py-8">
                 <div class="mb-4">
-                  <i class="fas fa-search text-4xl text-gray-300 dark:text-gray-600" />
+                  <i class="fas fa-search text-4xl text-gray-300" />
                 </div>
                 <p class="text-lg font-medium mb-2">
                   No related articles found
@@ -500,6 +501,7 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
       <!-- Right Section: Global Sidebar -->
       <GlobalSidebar />
     </div>
+  </div>
   </div>
 
   <!-- Global About Section -->
