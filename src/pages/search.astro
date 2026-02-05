@@ -252,14 +252,11 @@ const noResults = translate('common.notFound', lang);
 </BaseLayout>
 
 <script>
-  import Fuse from 'https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.esm.js';
-
   // Get search query from URL
   const urlParams = new URLSearchParams(window.location.search);
   const searchQuery = urlParams.get('q') || '';
 
   let searchIndex = [];
-  let fuse = null;
 
   // Load search index
   async function loadSearchIndex() {
@@ -267,33 +264,34 @@ const noResults = translate('common.notFound', lang);
       const response = await fetch('/search-index.json');
       searchIndex = await response.json();
 
-      // Initialize Fuse.js
-      fuse = new Fuse(searchIndex, {
-        keys: [
-          { name: 'title', weight: 0.4 },
-          { name: 'content', weight: 0.3 },
-          { name: 'excerpt', weight: 0.2 },
-          { name: 'category', weight: 0.05 },
-          { name: 'tags', weight: 0.05 }
-        ],
-        threshold: 0.3,
-        includeScore: true,
-        includeMatches: true
-      });
-
       // Perform search if query exists
       if (searchQuery.trim()) {
         performSearch(searchQuery.trim());
       }
     } catch (error) {
       console.error('Error loading search index:', error);
+      const subtitleEl = document.getElementById('search-subtitle');
+      if (subtitleEl) {
+        subtitleEl.textContent = 'Search index unavailable. Please try again later.';
+      }
     }
   }
 
   function performSearch(query) {
-    if (!fuse) return;
+    if (!searchIndex.length) {
+      updateUI(query, []);
+      return;
+    }
 
-    const results = fuse.search(query).slice(0, 50); // Limit to 50 results
+    const normalizedQuery = query.toLowerCase();
+    const results = searchIndex
+      .filter((article) => {
+        const haystack = (article.searchableText
+          || `${article.title || ''} ${article.excerpt || ''} ${article.content || ''} ${article.category || ''} ${article.tags || ''}`
+        ).toLowerCase();
+        return haystack.includes(normalizedQuery);
+      })
+      .slice(0, 50);
 
     updateUI(query, results);
   }
@@ -319,8 +317,7 @@ const noResults = translate('common.notFound', lang);
       resultsGrid.innerHTML = '';
     } else {
       noResultsEl.style.display = 'none';
-      resultsGrid.innerHTML = results.map(result => {
-        const article = result.item;
+      resultsGrid.innerHTML = results.map(article => {
         const imageUrl = article.featured_image?.url;
         const imageAlt = article.featured_image?.alt || article.title;
 
