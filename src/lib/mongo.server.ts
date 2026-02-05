@@ -81,8 +81,8 @@ export async function getArticlesFromMongo(page = 1, limit = 10, categoryName?: 
     const articles = await articlesCollection
       .aggregate([
         { $match: query },
-        // Keep list order deterministic so generated list/detail routes stay aligned.
-        { $sort: { date: -1, _id: -1 } },
+        // Sort on _id so Mongo can use the default index (avoids in-memory sort limit).
+        { $sort: { _id: -1 } },
         {
           $lookup: {
             from: 'categories',
@@ -251,7 +251,8 @@ export async function getAllArticlesFromMongo() {
         }
       }
     )
-      .sort({ date: -1, _id: -1 })
+      // Sort on indexed _id to avoid "sort exceeded memory limit" on large collections.
+      .sort({ _id: -1 })
       .limit(limit)
       .toArray();
 
