@@ -21,6 +21,8 @@ export function processArticleImageUrl(article: any): string {
 
   // Check various possible image URL fields
   const possibleUrls = [
+    article.featuredMedia?.url,
+    article.featuredMedia?.value?.url,
     article.featured_image?.asset?.url,
     article.featured_image?.url,
     article.featured_img_url,

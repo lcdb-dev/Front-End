@@ -19,6 +19,7 @@ import {
   buildBreadcrumbJsonLd,
 } from "../utils/buildArticleJsonLd";
 import { processArticleImageUrl } from "../utils/cdnUrlReplacer";
+import { renderArticleContent } from "../utils/renderArticleContent";
 
 export const prerender = true;
 
@@ -149,92 +150,8 @@ const getTitle = () => {
   return article.title || "Untitled";
 };
 
-// Helper: Extract content (Fixed for Payload CMS rich text)
-const getContent = () => {
-  if (!article) return "";
-
-  // If content is already a string (HTML), return it
-  if (typeof article.content === "string") {
-    return article.content;
-  }
-
-  // Handle Payload CMS rich text blocks
-  if (Array.isArray(article.content)) {
-    return article.content
-      .map((block: any) => {
-        // Handle different block types
-        if (block.type === "paragraph" || block._type === "block") {
-          if (block.children && Array.isArray(block.children)) {
-            return `<p>${block.children
-              .map((child: any) => {
-                let text = child.text || "";
-                // Apply marks (bold, italic, etc.)
-                if (child.marks && Array.isArray(child.marks)) {
-                  if (child.marks.includes("strong"))
-                    text = `<strong>${text}</strong>`;
-                  if (child.marks.includes("em")) text = `<em>${text}</em>`;
-                  if (child.marks.includes("code"))
-                    text = `<code>${text}</code>`;
-                }
-                return text;
-              })
-              .join("")}</p>`;
-          }
-        }
-
-        // Handle headings
-        if (block._type === "heading" || block.type === "heading") {
-          const level = block.level || 2;
-          const text =
-            block.children?.map((child: any) => child.text).join("") || "";
-          return `<h${level}>${text}</h${level}>`;
-        }
-
-        // Handle lists
-        if (block._type === "list" || block.type === "list") {
-          const listType = block.listType || "bullet";
-          const tag = listType === "number" ? "ol" : "ul";
-          const items =
-            block.children
-              ?.map(
-                (item: any) =>
-                  `<li>${item.children?.map((child: any) => child.text).join("") || ""}</li>`,
-              )
-              .join("") || "";
-          return `<${tag}>${items}</${tag}>`;
-        }
-
-        // Handle images
-        if (block._type === "image" || block.type === "image") {
-          const alt = block.alt || "";
-          const src = block.asset?.url || block.src || "";
-          return `<img src="${src}" alt="${alt}" class="w-full rounded-lg my-4" />`;
-        }
-
-        // Handle quotes
-        if (block._type === "blockquote" || block.type === "blockquote") {
-          const text =
-            block.children?.map((child: any) => child.text).join("") || "";
-          return `<blockquote class="border-l-4 border-orange-500 pl-4 italic my-4">${text}</blockquote>`;
-        }
-
-        // Handle code blocks
-        if (block._type === "code" || block.type === "code") {
-          return `<pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto my-4"><code>${block.code || ""}</code></pre>`;
-        }
-
-        // Fallback for unknown blocks
-        if (typeof block === "object" && block.children) {
-          return block.children.map((child: any) => child.text || "").join(" ");
-        }
-
-        return "";
-      })
-      .join("\n");
-  }
-
-  return "";
-};
+// Helper: Extract content (contentV2 first, legacy fallback)
+const getContent = () => renderArticleContent(article);
 
 // Helper: Extract excerpt
 const getExcerpt = () => {
@@ -257,19 +174,18 @@ const getExcerpt = () => {
 // Helper: Extract image
 const getImage = () => {
   if (!article) return "";
-  // Prioritize featured_img_url from import
-  if (article.featured_img_url) {
-    return article.featured_img_url;
-  }
-  if (article.featured_image?.url) {
-    return article.featured_image.url;
-  }
-  return article.featuredImageUrl || "";
+  return processArticleImageUrl(article);
 };
 
 // Helper: Extract image alt text
 const getImageAlt = () => {
   if (!article) return "";
+  if (article.featuredMedia?.alt) {
+    return article.featuredMedia.alt;
+  }
+  if (article.featuredImage?.alt) {
+    return article.featuredImage.alt;
+  }
   if (article.featured_image?.alt) {
     return article.featured_image.alt;
   }
@@ -341,19 +257,20 @@ const date = article.date
   : "";
 
 // Prepare SEO data
-const keywords = article.tags?.map((t: any) => t.title).join(", ") || title;
+const keywords = article.tags?.map((t: any) => t.title || t.name).join(", ") || title;
 const publishDate = article.date || new Date().toISOString();
-const modifiedDate = article.updated || publishDate;
+const modifiedDate = article.modified || article.updated || publishDate;
 const author = article.author?.name || "La Cuisine De Bernard";
+const articleUrl = `https://lacuisinedebernard.com/${slug}`;
 ---
 
 <BaseLayout
   title={title}
   description={excerpt}
-  canonical={`https://lacuisinedebernard.com/${article.slug}`}
+  canonical={articleUrl}
   image={image}
   jsonLd={[articleJsonLd, breadcrumbJsonLd]}
-  slug={article.slug}
+  slug={slug}
 >
   <!-- Main Article Content -->
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -419,7 +336,7 @@ const author = article.author?.name || "La Cuisine De Bernard";
               article.categories && article.categories.length > 0 && (
                 <span class="text-gray-600 dark:text-gray-400">
                   <i class="fas fa-tag mr-2 text-orange-600" />
-                  {article.categories.map((cat: any) => cat.title).join(", ")}
+                  {article.categories.map((cat: any) => cat.title || cat.name).join(", ")}
                 </span>
               )
             }
@@ -442,7 +359,7 @@ const author = article.author?.name || "La Cuisine De Bernard";
             </h3>
             <div class="flex gap-4">
               <a
-                href={`https://www.facebook.com/sharer/sharer.php?u=https://lacuisinedebernard.com/${article.slug?.current}`}
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(articleUrl)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 class="text-blue-600 hover:text-blue-700 transition-colors"
@@ -451,7 +368,7 @@ const author = article.author?.name || "La Cuisine De Bernard";
                 <i class="fab fa-facebook-f w-6 h-6"></i>
               </a>
               <a
-                href={`https://twitter.com/intent/tweet?url=https://lacuisinedebernard.com/${article.slug?.current}&text=${encodeURIComponent(title)}`}
+                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(title)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 class="text-black hover:text-gray-700 transition-colors dark:text-white dark:hover:text-gray-300"
@@ -460,7 +377,7 @@ const author = article.author?.name || "La Cuisine De Bernard";
                 <i class="fab fa-x-twitter w-6 h-6"></i>
               </a>
               <a
-                href={`https://www.pinterest.com/pin/create/button/?url=https://lacuisinedebernard.com/${article.slug?.current}`}
+                href={`https://www.pinterest.com/pin/create/button/?url=${encodeURIComponent(articleUrl)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 class="text-red-600 hover:text-red-700 transition-colors"
@@ -469,7 +386,7 @@ const author = article.author?.name || "La Cuisine De Bernard";
                 <i class="fab fa-pinterest w-6 h-6"></i>
               </a>
               <a
-                href={`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`Check out this article: ${title} - https://lacuisinedebernard.com/${article.slug?.current}`)}`}
+                href={`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`Check out this article: ${title} - ${articleUrl}`)}`}
                 class="text-gray-600 hover:text-gray-700 transition-colors"
                 title="Share via Email"
               >
@@ -741,6 +658,57 @@ const author = article.author?.name || "La Cuisine De Bernard";
     color: #333;
     font-size: 1.05rem;
     line-height: 1.85;
+  }
+
+  .article-content :global(.content-v2-block) {
+    margin: 2rem 0;
+  }
+
+  .article-content :global(.content-v2-note) {
+    border-left: 4px solid #e67e22;
+    background: #fff8f1;
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+  }
+
+  .article-content :global(.content-v2-note-tone) {
+    margin: 0 0 0.5rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #8c4d12;
+  }
+
+  .article-content :global(.content-v2-recipe-card) {
+    background: #fbfbfb;
+    border: 1px solid #e6e6e6;
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+
+  .article-content :global(.content-v2-recipe-meta) {
+    margin: 0 0 1.5rem 0;
+    padding-left: 1.2rem;
+  }
+
+  .article-content :global(.content-v2-recipe-section) {
+    margin-top: 1rem;
+  }
+
+  .article-content :global(.content-v2-gallery-grid) {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .article-content :global(.content-v2-gallery-item) {
+    margin: 0;
+  }
+
+  .article-content :global(.content-v2-gallery-item figcaption) {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #555;
   }
 
   /* ===== RECIPE SPECIFIC STYLES ===== */
