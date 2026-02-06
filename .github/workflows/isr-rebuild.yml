@@ -26,6 +26,8 @@ permissions:
 jobs:
   update-snapshot:
     runs-on: ubuntu-latest
+    env:
+      COOLIFY_DEPLOY_WEBHOOK: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}
     steps:
       - name: Checkout repository (with LFS)
         uses: actions/checkout@v4
@@ -69,5 +71,5 @@ jobs:
         run: git push
 
       - name: Trigger Coolify deploy (optional)
-        if: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}
-        run: curl -X POST "${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}"
+        if: ${{ env.COOLIFY_DEPLOY_WEBHOOK != '' }}
+        run: curl -X POST "$COOLIFY_DEPLOY_WEBHOOK"
