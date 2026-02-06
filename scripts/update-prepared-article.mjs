@@ -24,8 +24,20 @@ const decodeSafe = (value) => {
   }
 };
 
-const normalizeSlug = (value) =>
-  typeof value === 'string' ? value.trim().replace(/^\/+|\/+$/g, '') : '';
+const normalizeSlug = (value) => {
+  if (typeof value !== 'string') return '';
+  let slug = value.trim();
+  try {
+    slug = decodeURIComponent(slug);
+  } catch {
+    // keep original
+  }
+  slug = slug.replace(/^\/+|\/+$/g, '');
+  slug = slug.replace(/^articles?\//i, '');
+  slug = slug.replace(/\/index\.html?$/i, '');
+  slug = slug.replace(/\.html?$/i, '');
+  return slug;
+};
 
 const normalizeId = (value) => (value ? String(value).trim() : '');
 
@@ -45,6 +57,11 @@ const getItemId = (item) => {
     item?.doc?.id ||
     ''
   );
+};
+
+const normalizeTitle = (value) => {
+  if (typeof value !== 'string') return '';
+  return value.trim().toLowerCase();
 };
 
 const buildHeaders = () => {
@@ -116,6 +133,7 @@ const main = async () => {
   const normalizedSlug = normalizeSlug(
     typeof article.slug === 'string' ? article.slug : article.slug?.current || slug,
   );
+  const normalizedTitle = normalizeTitle(article.title);
 
   const articleId = normalizeId(
     article._id || article.id || article?.doc?._id || article?.doc?.id || id,
@@ -135,6 +153,18 @@ const main = async () => {
   if (index === -1) {
     index = articles.findIndex((item) => variants.has(getItemSlug(item)));
   }
+  if (index === -1 && normalizedTitle) {
+    const titleMatches = articles
+      .map((item, idx) => ({ idx, title: normalizeTitle(item?.title) }))
+      .filter((entry) => entry.title && entry.title === normalizedTitle);
+    if (titleMatches.length === 1) {
+      index = titleMatches[0].idx;
+    } else if (titleMatches.length > 1) {
+      console.warn(
+        `Multiple title matches for "${article.title}". Skipping title-based update.`,
+      );
+    }
+  }
 
   const merged = {
     ...article,
@@ -146,7 +176,17 @@ const main = async () => {
     articles[index] = merged;
     console.log(`Updated prepared-articles.json entry for slug: ${normalizedSlug}`);
   } else {
-    articles.push(merged);
+    // Remove any stale entries that still match this slug/id before adding.
+    const cleaned = articles.filter((item) => {
+      const itemId = normalizeId(getItemId(item));
+      const itemSlug = getItemSlug(item);
+      if (articleId && itemId && itemId === articleId) return false;
+      if (itemSlug && variants.has(itemSlug)) return false;
+      return true;
+    });
+    cleaned.push(merged);
+    articles.length = 0;
+    articles.push(...cleaned);
     console.log(`Added new entry to prepared-articles.json for slug: ${normalizedSlug}`);
   }
 
@@ -157,13 +197,12 @@ const main = async () => {
     const itemId = normalizeId(getItemId(item));
     const itemSlug = getItemSlug(item);
 
-    if (itemId) {
-      if (seenIds.has(itemId)) continue;
-      seenIds.add(itemId);
-    } else if (itemSlug) {
-      if (seenSlugs.has(itemSlug)) continue;
-      seenSlugs.add(itemSlug);
-    }
+    if (itemId && seenIds.has(itemId)) continue;
+    if (itemSlug && seenSlugs.has(itemSlug)) continue;
+
+    if (itemId) seenIds.add(itemId);
+    if (itemSlug) seenSlugs.add(itemSlug);
+
     deduped.push(item);
   }
 
