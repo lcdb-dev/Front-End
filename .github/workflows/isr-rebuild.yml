@@ -3,10 +3,25 @@ name: Payload Update Snapshot + Coolify Deploy
 on:
   repository_dispatch:
     types: [ payload-update ]
+  workflow_dispatch:
+    inputs:
+      collection:
+        description: "Payload collection (articles, categories, tags, authors, media)"
+        required: false
+        default: "articles"
+      slug:
+        description: "Article slug (for single-article update)"
+        required: false
+      id:
+        description: "Article ID (optional)"
+        required: false
 
 concurrency:
   group: payload-snapshot-update
   cancel-in-progress: true
+
+permissions:
+  contents: write
 
 jobs:
   update-snapshot:
@@ -23,16 +38,16 @@ jobs:
           node-version: 20
 
       - name: Update single article snapshot
-        if: ${{ github.event.client_payload.collection == 'articles' }}
+        if: ${{ (github.event.client_payload.collection || inputs.collection) == 'articles' }}
         run: node scripts/update-prepared-article.mjs
         env:
           PAYLOAD_API_URL: ${{ secrets.PAYLOAD_API_URL }}
           PAYLOAD_API_TOKEN: ${{ secrets.PAYLOAD_API_TOKEN }}
-          SLUG: ${{ github.event.client_payload.slug }}
-          ID: ${{ github.event.client_payload.id }}
+          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
+          ID: ${{ github.event.client_payload.id || inputs.id }}
 
       - name: Refresh full snapshot for taxonomy/media updates
-        if: ${{ github.event.client_payload.collection != 'articles' }}
+        if: ${{ (github.event.client_payload.collection || inputs.collection) != 'articles' }}
         run: node scripts/refresh-prepared-articles.mjs
         env:
           PAYLOAD_API_URL: ${{ secrets.PAYLOAD_API_URL }}
