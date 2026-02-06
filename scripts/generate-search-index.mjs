@@ -18,7 +18,50 @@ async function generateSearchIndex() {
 
     // Dynamic import keeps this script compatible with tsx in CJS/ESM contexts.
     const { getAllArticlesFromMongo: getArticles } = await import('../src/lib/mongo.server.ts');
-    const articles = await getArticles();
+    let articles = await getArticles();
+
+    if (!Array.isArray(articles) || articles.length === 0) {
+      const payloadApiUrl = process.env.PUBLIC_PAYLOAD_API_URL || process.env.PAYLOAD_API_URL;
+      const targetLimit = Number.isFinite(searchLimitRaw) && searchLimitRaw > 0 ? searchLimitRaw : undefined;
+      if (payloadApiUrl) {
+        console.warn('[SEARCH] Mongo returned 0 articles. Falling back to Payload API.');
+        const pageSize = 100;
+        let page = 1;
+        let totalPages = 0;
+        let safety = 0;
+        const fetched = [];
+
+        while (safety < 500) {
+          safety += 1;
+          const url = `${payloadApiUrl}/articles?limit=${pageSize}&page=${page}&depth=2`;
+          const res = await fetch(url);
+          if (!res.ok) {
+            console.warn(`[SEARCH] Payload API error ${res.status} ${res.statusText}`);
+            break;
+          }
+          const data = await res.json();
+          const docs = Array.isArray(data?.docs) ? data.docs : Array.isArray(data) ? data : [];
+          if (docs.length === 0) break;
+          fetched.push(...docs);
+
+          totalPages = Number(data?.totalPages) || totalPages;
+          if (totalPages && page >= totalPages) break;
+
+          if (targetLimit && fetched.length >= targetLimit) break;
+          if (docs.length < pageSize) break;
+          page += 1;
+        }
+
+        if (targetLimit) {
+          articles = fetched.slice(0, targetLimit);
+        } else {
+          articles = fetched;
+        }
+      } else {
+        console.warn('[SEARCH] PUBLIC_PAYLOAD_API_URL not set; cannot fallback to Payload API.');
+      }
+    }
+
     console.log(`[SEARCH] Found ${articles.length} articles to process`);
 
     console.log('[SEARCH] Processing articles...');
