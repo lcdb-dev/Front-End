@@ -13,7 +13,8 @@ let translationInProgress = false;
 
 const deeplEndpoint =
   import.meta.env.PUBLIC_TRANSLATE_API_URL ||
-  '/api';
+  import.meta.env.PUBLIC_PAYLOAD_API_URL ||
+  (import.meta.env.DEV ? '/api' : '');
 
 const deeplLanguageMap: Record<string, string> = {
   en: 'EN',
