@@ -18,7 +18,7 @@ const languages = [
   { code: 'en', label: 'English' },
   { code: 'fr', label: 'Français' },
   { code: 'es', label: 'Español' },
-  { code: 'pt', label: 'Português' },
+  { code: 'pt-br', label: 'Português' },
   { code: 'ar', label: 'العربية' }
 ];
 
@@ -59,15 +59,16 @@ const currentYear = new Date().getFullYear();
 
     <!-- Language Section -->
     <div class="border-t border-gray-700 pt-8">
-      <div class="flex flex-wrap justify-center gap-4 mb-8">
+      <div class="flex flex-wrap justify-center gap-4 mb-8" data-no-translate="true">
         {languages.map((lang) => (
           <a
-            href={`/${lang.code}`}
-            class={`px-3 py-1 rounded-full transition-all ${
+            href="#"
+            class={`lang-btn px-3 py-1 rounded-full transition-all ${
               currentLang === lang.code
                 ? 'bg-orange-500 text-white font-bold'
                 : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
             }`}
+            data-lang={lang.code}
           >
             {lang.label}
           </a>

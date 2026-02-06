@@ -39,14 +39,14 @@ const { title, description, canonical, slug, lang = 'en', image, jsonLd = [] } =
 </html>
 
 <script>
-  import { initializeTranslations, setupLanguageSwitcher, watchLanguageChanges, translatePageContent } from '../utils/dynamicTranslate';
+  import { initializeTranslations, setupLanguageSwitcher, watchLanguageChanges, changeLanguage, getCurrentLanguage } from '../utils/dynamicTranslate';
 
   // Initialize translations on page load
   async function init() {
     await initializeTranslations();
     setupLanguageSwitcher();
     watchLanguageChanges();
-    translatePageContent();
+    await changeLanguage(getCurrentLanguage());
   }
 
   init().catch(error => console.error('Failed to initialize translations:', error));
