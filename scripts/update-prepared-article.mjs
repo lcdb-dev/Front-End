@@ -27,11 +27,24 @@ const decodeSafe = (value) => {
 const normalizeSlug = (value) =>
   typeof value === 'string' ? value.trim().replace(/^\/+|\/+$/g, '') : '';
 
+const normalizeId = (value) => (value ? String(value).trim() : '');
+
 const getItemSlug = (item) => {
   if (!item) return '';
   if (typeof item.slug === 'string') return normalizeSlug(item.slug);
   if (item.slug?.current) return normalizeSlug(item.slug.current);
   return '';
+};
+
+const getItemId = (item) => {
+  if (!item) return '';
+  return (
+    item._id ||
+    item.id ||
+    item?.doc?._id ||
+    item?.doc?.id ||
+    ''
+  );
 };
 
 const buildHeaders = () => {
@@ -104,6 +117,10 @@ const main = async () => {
     typeof article.slug === 'string' ? article.slug : article.slug?.current || slug,
   );
 
+  const articleId = normalizeId(
+    article._id || article.id || article?.doc?._id || article?.doc?.id || id,
+  );
+
   const variants = new Set([
     normalizedSlug,
     normalizeSlug(decodeSafe(normalizedSlug)),
@@ -111,11 +128,17 @@ const main = async () => {
     normalizeSlug(decodeSafe(slug)),
   ].filter(Boolean));
 
-  const index = articles.findIndex((item) => variants.has(getItemSlug(item)));
+  let index = -1;
+  if (articleId) {
+    index = articles.findIndex((item) => normalizeId(getItemId(item)) === articleId);
+  }
+  if (index === -1) {
+    index = articles.findIndex((item) => variants.has(getItemSlug(item)));
+  }
 
   const merged = {
     ...article,
-    _id: article._id || article.id || article?.doc?._id || article?.doc?.id,
+    _id: articleId || article._id || article.id || article?.doc?._id || article?.doc?.id,
     slug: normalizedSlug || article.slug,
   };
 
@@ -127,7 +150,24 @@ const main = async () => {
     console.log(`Added new entry to prepared-articles.json for slug: ${normalizedSlug}`);
   }
 
-  writePreparedArticles(articles);
+  const deduped = [];
+  const seenIds = new Set();
+  const seenSlugs = new Set();
+  for (const item of articles) {
+    const itemId = normalizeId(getItemId(item));
+    const itemSlug = getItemSlug(item);
+
+    if (itemId) {
+      if (seenIds.has(itemId)) continue;
+      seenIds.add(itemId);
+    } else if (itemSlug) {
+      if (seenSlugs.has(itemSlug)) continue;
+      seenSlugs.add(itemSlug);
+    }
+    deduped.push(item);
+  }
+
+  writePreparedArticles(deduped);
 };
 
 main().catch((error) => {
