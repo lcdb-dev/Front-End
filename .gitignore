@@ -21,7 +21,6 @@ payload-admin/
 
 # Large data files (generated/test files)
 All Articles/
-prepared-articles.json
 ar-slugs.csv
 LCDB
 LCDB.pub

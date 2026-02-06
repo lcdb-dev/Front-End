@@ -1,45 +1,58 @@
-name: ISR Rebuild on Payload Update
+name: Payload Update Snapshot + Coolify Deploy
 
 on:
   repository_dispatch:
     types: [ payload-update ]
 
 concurrency:
-  group: scaleway-static-deploy
+  group: payload-snapshot-update
   cancel-in-progress: true
 
 jobs:
-  rebuild-and-deploy:
+  update-snapshot:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (with LFS)
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build site
-        run: npm run build
+      - name: Update single article snapshot
+        if: ${{ github.event.client_payload.collection == 'articles' }}
+        run: node scripts/update-prepared-article.mjs
         env:
-          NODE_ENV: production
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          MAX_SSG_ARTICLES: ${{ vars.MAX_SSG_ARTICLES }}
-          INCLUDE_SLUGS: ${{ github.event.client_payload.slug && format('{0},{1}', vars.INCLUDE_SLUGS, github.event.client_payload.slug) || vars.INCLUDE_SLUGS }}
-          USE_LOCAL_JSON: ${{ vars.USE_LOCAL_JSON }}
-          BUILD_ONLY_ARTICLE_PAGES: ${{ vars.BUILD_ONLY_ARTICLE_PAGES }}
+          PAYLOAD_API_URL: ${{ secrets.PAYLOAD_API_URL }}
+          PAYLOAD_API_TOKEN: ${{ secrets.PAYLOAD_API_TOKEN }}
+          SLUG: ${{ github.event.client_payload.slug }}
+          ID: ${{ github.event.client_payload.id }}
 
-      - name: Sync dist to Scaleway Object Storage
-        uses: jakejarvis/s3-sync-action@v0.5.1
+      - name: Refresh full snapshot for taxonomy/media updates
+        if: ${{ github.event.client_payload.collection != 'articles' }}
+        run: node scripts/refresh-prepared-articles.mjs
         env:
-          AWS_S3_BUCKET: ${{ secrets.SCW_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
-          AWS_REGION: ${{ secrets.SCW_REGION || 'fr-par' }}
-          AWS_S3_ENDPOINT: ${{ secrets.SCW_ENDPOINT || 'https://s3.fr-par.scw.cloud' }}
-          SOURCE_DIR: dist
+          PAYLOAD_API_URL: ${{ secrets.PAYLOAD_API_URL }}
+          PAYLOAD_API_TOKEN: ${{ secrets.PAYLOAD_API_TOKEN }}
+
+      - name: Commit snapshot changes
+        run: |
+          git config user.name "payload-bot"
+          git config user.email "payload-bot@users.noreply.github.com"
+          git add prepared-articles.json
+          if git diff --cached --quiet; then
+            echo "No snapshot changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: update prepared articles snapshot"
+
+      - name: Push snapshot update
+        if: ${{ success() }}
+        run: git push
+
+      - name: Trigger Coolify deploy (optional)
+        if: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}
+        run: curl -X POST "${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}"

@@ -9,6 +9,8 @@
     "astro": "astro",
     "payload": "tsx server.ts",
     "build:prepared": "node scripts/build-prepared-articles.mjs",
+    "update:prepared": "node scripts/update-prepared-article.mjs",
+    "refresh:prepared": "node scripts/refresh-prepared-articles.mjs",
     "generate-search-index": "tsx scripts/generate-search-index.mjs",
     "index:algolia": "node scripts/index-algolia.js",
     "reindex:articles": "node scripts/reindex-articles.mjs",
