@@ -1,13 +1,14 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { payloadFetch } from '../../lib/payload.client';
-import { getAllArticlesFromMongo } from '../../lib/mongo.server';
+import { getAllArticlesFromMongo, getArticleBySlugFromMongo } from '../../lib/mongo.server';
 import { processArticleImageUrl } from '../../utils/cdnUrlReplacer';
 import { renderArticleContent } from '../../utils/renderArticleContent';
 import DisqusComments from '../../components/DisqusComments.astro';
 import MediavineSlot from '../../components/MediavineSlot.astro';
 
-export const prerender = true;
+const isDev = import.meta.env.DEV;
+export const prerender = !isDev;
 
 const getBuildLimit = () => {
   const envLimit = Number(process.env.MAX_SSG_ARTICLES);
@@ -15,6 +16,10 @@ const getBuildLimit = () => {
 };
 
 export async function getStaticPaths() {
+  if (import.meta.env.DEV) {
+    return [];
+  }
+
   // Try to get articles from MongoDB first (with featured_img_url)
   let articles = await getAllArticlesFromMongo();
   
@@ -30,13 +35,22 @@ export async function getStaticPaths() {
     return [];
   }
 
+  const decodeSafe = (value: string) => {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  };
+
   return articles
     .filter((article: any) => article?.slug)
     .map((article: any) => {
       const rawSlug = typeof article.slug === 'string' ? article.slug : article.slug?.current || '';
+      const slugValue = decodeSafe(rawSlug);
       return {
-        params: { slug: rawSlug },
-        props: { article: { ...article, slug: rawSlug } }
+        params: { slug: slugValue },
+        props: { article: { ...article, slug: slugValue } }
       };
     });
 }
@@ -45,7 +59,26 @@ interface Props {
   article: any;
 }
 
-const { article } = Astro.props;
+let { article } = Astro.props;
+
+if (!article) {
+  const slugParam = Astro.params?.slug;
+  if (slugParam) {
+    article = await getArticleBySlugFromMongo(slugParam);
+    if (!article) {
+      const fallback = await payloadFetch({
+        collection: 'articles',
+        query: { slug: slugParam, depth: 2, limit: 1 },
+      });
+      article = Array.isArray(fallback) ? fallback[0] : null;
+    }
+  }
+}
+
+if (!article) {
+  return new Response('Article not found', { status: 404 });
+}
+
 const imageUrl = processArticleImageUrl(article);
 const content = renderArticleContent(article);
 

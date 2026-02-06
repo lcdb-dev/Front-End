@@ -1,7 +1,9 @@
 import type { APIRoute } from 'astro';
 
 const DEFAULT_DEEPL_URL = 'https://api.deepl.com/v2/translate';
-export const prerender = false;
+const isDev = import.meta.env.DEV;
+// Dev-only API route. In production (pure SSG), this must be prerendered to avoid SSR.
+export const prerender = !isDev;
 
 const languageMap: Record<string, string> = {
   en: 'EN',
@@ -31,7 +33,32 @@ export const OPTIONS: APIRoute = async () => {
   return withCors(new Response(null, { status: 204 }));
 };
 
+export const GET: APIRoute = async () => {
+  if (isDev) {
+    return withCors(
+      new Response(
+        JSON.stringify({ error: 'Use POST for translation in dev.' }),
+        { status: 405, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+  }
+  return withCors(
+    new Response(
+      JSON.stringify({ error: 'Translate API disabled in static production build.' }),
+      { status: 404, headers: { 'Content-Type': 'application/json' } },
+    ),
+  );
+};
+
 export const POST: APIRoute = async ({ request }) => {
+  if (!isDev) {
+    return withCors(
+      new Response(
+        JSON.stringify({ error: 'Translate API disabled in static production build.' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+  }
   const apiKey = process.env.DEEPL_API_KEY;
   const apiUrl = process.env.DEEPL_API_URL || DEFAULT_DEEPL_URL;
 
