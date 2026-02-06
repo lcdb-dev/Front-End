@@ -7,8 +7,7 @@ import { renderArticleContent } from '../../utils/renderArticleContent';
 import DisqusComments from '../../components/DisqusComments.astro';
 import MediavineSlot from '../../components/MediavineSlot.astro';
 
-const isDev = import.meta.env.DEV;
-export const prerender = !isDev;
+export const prerender = !import.meta.env.DEV;
 
 const getBuildLimit = () => {
   const envLimit = Number(process.env.MAX_SSG_ARTICLES);
