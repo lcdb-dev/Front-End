@@ -15,6 +15,8 @@ interface Props {
 }
 
 const { title, description, canonical, slug, lang = 'en', image, jsonLd = [] } = Astro.props;
+const mediavineScriptSrc = import.meta.env.PUBLIC_MEDIAVINE_SCRIPT_SRC;
+const gaMeasurementId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
 ---
 
 <!doctype html>
@@ -31,6 +33,20 @@ const { title, description, canonical, slug, lang = 'en', image, jsonLd = [] } =
     {jsonLd && jsonLd.length > 0 && jsonLd.map(schema => (
       <script type="application/ld+json" set:html={JSON.stringify(schema)} />
     ))}
+    {mediavineScriptSrc && (
+      <script async src={mediavineScriptSrc}></script>
+    )}
+    {gaMeasurementId && (
+      <>
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}></script>
+        <script is:inline define:vars={{ gaMeasurementId }}>
+          window.dataLayer = window.dataLayer || [];
+          function gtag() { dataLayer.push(arguments); }
+          gtag('js', new Date());
+          gtag('config', gaMeasurementId);
+        </script>
+      </>
+    )}
   </head>
   <body>
     <Header lang={lang} />

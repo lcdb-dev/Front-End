@@ -13,8 +13,7 @@ let translationInProgress = false;
 
 const deeplEndpoint =
   import.meta.env.PUBLIC_TRANSLATE_API_URL ||
-  import.meta.env.PUBLIC_PAYLOAD_API_URL ||
-  '';
+  '/api';
 
 const deeplLanguageMap: Record<string, string> = {
   en: 'EN',
@@ -105,15 +104,16 @@ const collectTextNodes = (root: HTMLElement): Text[] => {
 const requestDeepLTranslation = async (texts: string[], targetLang: string): Promise<string[]> => {
   if (!deeplEndpoint) return texts;
 
+  const params = new URLSearchParams();
+  params.append('targetLang', targetLang);
+  texts.forEach((text) => params.append('text', text));
+
   const response = await fetch(`${deeplEndpoint}/translate`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
     },
-    body: JSON.stringify({
-      texts,
-      targetLang,
-    }),
+    body: params.toString(),
   });
 
   if (!response.ok) {

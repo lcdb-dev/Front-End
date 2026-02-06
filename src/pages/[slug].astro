@@ -7,6 +7,7 @@ import GlobalSidebar from "../components/GlobalSidebar.astro";
 import GlobalAbout from "../components/GlobalAbout.astro";
 import GlobalFooter from "../components/GlobalFooter.astro";
 import DisqusComments from "../components/DisqusComments.astro";
+import MediavineSlot from "../components/MediavineSlot.astro";
 
 import { payloadFetch } from "../lib/payload.client";
 import {
@@ -346,6 +347,10 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
             }
           </div>
 
+          <div class="my-8">
+            <MediavineSlot slot="article-top" minHeight={280} />
+          </div>
+
           <!-- Article Content -->
           <div class="prose max-w-none mb-8">
             <div
@@ -399,6 +404,10 @@ const articleUrl = `https://lacuisinedebernard.com/${slug}`;
             </div>
           </div>
         </article>
+
+        <div class="my-8">
+          <MediavineSlot slot="article-bottom" minHeight={280} />
+        </div>
 
         <!-- Comments Section - Disqus -->
         <div class="bg-[#fffaf0] rounded-lg shadow p-6 border border-[#eadfcb]">
