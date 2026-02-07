@@ -50,9 +50,17 @@ jobs:
           else
             echo "No existing snapshot release found."
           fi
+      - name: Check snapshot file
+        id: snapshot
+        run: |
+          if [ -f prepared-articles.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Update single article snapshot
-        if: ${{ (github.event.client_payload.collection || inputs.collection) == 'articles' }}
+        if: ${{ (github.event.client_payload.collection || inputs.collection) == 'articles' && steps.snapshot.outputs.exists == 'true' }}
         run: node scripts/update-prepared-article.mjs
         env:
           PAYLOAD_API_URL: ${{ secrets.PAYLOAD_API_URL }}
@@ -61,7 +69,7 @@ jobs:
           ID: ${{ github.event.client_payload.id || inputs.id }}
 
       - name: Refresh full snapshot for taxonomy/media updates
-        if: ${{ (github.event.client_payload.collection || inputs.collection) != 'articles' }}
+        if: ${{ (github.event.client_payload.collection || inputs.collection) != 'articles' || steps.snapshot.outputs.exists == 'false' }}
         run: node scripts/refresh-prepared-articles.mjs
         env:
           PAYLOAD_API_URL: ${{ secrets.PAYLOAD_API_URL }}
