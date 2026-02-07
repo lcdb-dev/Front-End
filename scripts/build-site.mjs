@@ -22,12 +22,24 @@ const env = {
 const articleOnlyBuild =
   isTruthy(env.BUILD_ONLY_ARTICLE_PAGES) || isTruthy(env.BUILD_ONLY_ARTICLES);
 const disableSearch = isTruthy(env.BUILD_DISABLE_SEARCH);
+const useLocalJson = isTruthy(env.USE_LOCAL_JSON);
+const preparedUrl = env.PREPARED_JSON_URL || '';
+
+const downloadPreparedSnapshot = () => {
+  if (!preparedUrl) return;
+  console.log(`[BUILD] Downloading prepared-articles.json from ${preparedUrl}...`);
+  run(`curl -fL "${preparedUrl}" -o prepared-articles.json`, env);
+};
 
 try {
   if (articleOnlyBuild) {
     // In article-only mode we force local JSON to avoid Mongo timeouts during CI/deploy builds.
     env.USE_LOCAL_JSON = '1';
     console.log('BUILD_ONLY_ARTICLE_PAGES enabled: using prepared JSON for fast build.');
+  }
+
+  if (articleOnlyBuild || useLocalJson) {
+    downloadPreparedSnapshot();
   }
 
   if (disableSearch) {

@@ -24,6 +24,7 @@ All Articles/
 ar-slugs.csv
 LCDB
 LCDB.pub
+prepared-articles.json
 
 # local build caches
 .vite-cache-build/

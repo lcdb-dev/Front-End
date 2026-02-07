@@ -40,6 +40,17 @@ jobs:
         with:
           node-version: 20
 
+      - name: Download latest prepared snapshot (if exists)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="prepared-snapshot"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release download "$TAG" -p prepared-articles.json -D .
+          else
+            echo "No existing snapshot release found."
+          fi
+
       - name: Update single article snapshot
         if: ${{ (github.event.client_payload.collection || inputs.collection) == 'articles' }}
         run: node scripts/update-prepared-article.mjs
@@ -56,22 +67,15 @@ jobs:
           PAYLOAD_API_URL: ${{ secrets.PAYLOAD_API_URL }}
           PAYLOAD_API_TOKEN: ${{ secrets.PAYLOAD_API_TOKEN }}
 
-      - name: Commit snapshot changes
+      - name: Upload snapshot to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.name "payload-bot"
-          git config user.email "payload-bot@users.noreply.github.com"
-          git add prepared-articles.json
-          if git diff --cached --quiet; then
-            echo "No snapshot changes to commit."
-            exit 0
+          TAG="prepared-snapshot"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "Prepared Articles Snapshot" --notes "Automated snapshot"
           fi
-          git commit -m "chore: update prepared articles snapshot"
-
-      - name: Push snapshot update (master + main)
-        if: ${{ success() }}
-        run: |
-          git push origin HEAD:master
-          git push origin HEAD:main
+          gh release upload "$TAG" prepared-articles.json --clobber
 
       - name: Trigger Coolify deploy (optional)
         if: ${{ env.COOLIFY_DEPLOY_WEBHOOK != '' }}
