@@ -19,16 +19,29 @@ export function replaceCdnUrl(url: string): string {
 export function processArticleImageUrl(article: any): string {
   if (!article) return '';
 
+  const extractFromHtml = (html?: string): string => {
+    if (!html || typeof html !== 'string') return '';
+    // Try src or data-src first
+    const match =
+      html.match(/<img[^>]+src=["']([^"']+)["']/i) ||
+      html.match(/<img[^>]+data-src=["']([^"']+)["']/i);
+    if (!match) return '';
+    return match[1] || '';
+  };
+
   // Check various possible image URL fields
   const possibleUrls = [
     article.featuredMedia?.url,
     article.featuredMedia?.value?.url,
     article.featured_image?.asset?.url,
     article.featured_image?.url,
+    article.featured_image_url,
     article.featured_img_url,
     article.featureImage,
     article.featuredImage?.url,
-    article.featuredImageUrl
+    article.featuredImageUrl,
+    extractFromHtml(article.content),
+    extractFromHtml(article.contentV2)
   ];
 
   // Find the first valid URL
