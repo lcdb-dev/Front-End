@@ -169,6 +169,7 @@ const main = async () => {
   const merged = {
     ...article,
     _id: articleId || article._id || article.id || article?.doc?._id || article?.doc?.id,
+    id: articleId || article.id || article._id || article?.doc?.id || article?.doc?._id,
     slug: normalizedSlug || article.slug,
   };
 

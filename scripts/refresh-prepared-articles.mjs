@@ -41,6 +41,19 @@ const fetchPage = async (page) => {
 const normalizeSlug = (value) =>
   typeof value === 'string' ? value.trim().replace(/^\/+|\/+$/g, '') : '';
 
+const normalizeId = (value) => (value ? String(value).trim() : '');
+
+const ensureIds = (doc) => {
+  const existingId = doc?.id ?? doc?._id ?? doc?.doc?.id ?? doc?.doc?._id ?? '';
+  const normalizedId = normalizeId(existingId);
+  if (!normalizedId) return doc;
+  return {
+    ...doc,
+    id: doc?.id || normalizedId,
+    _id: doc?._id || normalizedId,
+  };
+};
+
 const dedupeBySlug = (items) => {
   const seen = new Set();
   const deduped = [];
@@ -72,7 +85,7 @@ const main = async () => {
     const docs = Array.isArray(data?.docs) ? data.docs : Array.isArray(data) ? data : [];
     if (!docs.length) break;
 
-    allDocs.push(...docs);
+    allDocs.push(...docs.map(ensureIds));
 
     totalPages = Number(data?.totalPages) || totalPages;
     if (totalPages && page >= totalPages) break;
