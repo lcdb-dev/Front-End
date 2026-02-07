@@ -67,9 +67,11 @@ jobs:
           fi
           git commit -m "chore: update prepared articles snapshot"
 
-      - name: Push snapshot update
+      - name: Push snapshot update (master + main)
         if: ${{ success() }}
-        run: git push
+        run: |
+          git push origin HEAD:master
+          git push origin HEAD:main
 
       - name: Trigger Coolify deploy (optional)
         if: ${{ env.COOLIFY_DEPLOY_WEBHOOK != '' }}
